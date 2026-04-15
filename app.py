@@ -1,11 +1,10 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, jsonify
 from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime
 import os
 
 app = Flask(__name__)
 
-# Database Configuration (Render will provide DATABASE_URL)
+# Database Configuration for Render
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -15,7 +14,7 @@ if app.config['SQLALCHEMY_DATABASE_URI'] and app.config['SQLALCHEMY_DATABASE_URI
 
 db = SQLAlchemy(app)
 
-# Database Model for Breakdown Records
+# Database Model
 class Breakdown(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     date = db.Column(db.String(20), nullable=False)
@@ -30,26 +29,18 @@ class Breakdown(db.Model):
             'machine': self.machine
         }
 
-# Create tables if they don't exist
+# Create tables
 with app.app_context():
     db.create_all()
 
 @app.route('/')
 def index():
-    # Get all records (newest first)
     records = Breakdown.query.order_by(Breakdown.id.desc()).all()
     total_records = len(records)
     return render_template('index.html', records=records, total=total_records)
 
-@app.route('/api/records')
-def get_records():
-    records = Breakdown.query.order_by(Breakdown.id.desc()).all()
-    return jsonify([r.to_dict() for r in records])
-
-# Simple route to add sample data (visit /seed once)
 @app.route('/seed')
 def seed_data():
-    # Clear existing data
     Breakdown.query.delete()
     
     sample_data = [
@@ -66,7 +57,9 @@ def seed_data():
         db.session.add(record)
     
     db.session.commit()
-    return "Sample data seeded successfully! <a href='/'>Go to Dashboard</a>"
+    return "✅ Sample data seeded successfully! <br><a href='/'>Go to Dashboard</a>"
 
+# Important: This allows Render to start the app correctly
 if __name__ == '__main__':
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
