@@ -5,13 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ElecBreak - Breakdown Tracker</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
     <style>
         body { background-color: #111827; color: #e5e7eb; }
         .card { background-color: #1f2937; }
-        .sidebar-active { background-color: #3b82f6; color: white; }
     </style>
 </head>
 <body class="flex h-screen overflow-hidden">
@@ -25,7 +25,7 @@
             </div>
         </div>
         <nav class="space-y-1">
-            <a href="#" class="sidebar-active flex items-center gap-3 px-4 py-3 rounded-2xl">📋 Tracker</a>
+            <a href="#" class="flex items-center gap-3 px-4 py-3 bg-blue-600 rounded-2xl">📋 Tracker</a>
             <a href="#" class="flex items-center gap-3 px-4 py-3 hover:bg-gray-800 rounded-2xl">📊 Board</a>
             <a href="#" class="flex items-center gap-3 px-4 py-3 hover:bg-gray-800 rounded-2xl">📈 Analytics</a>
             <a href="#" class="flex items-center gap-3 px-4 py-3 hover:bg-gray-800 rounded-2xl">⏳ Downtime</a>
@@ -39,7 +39,7 @@
         <p class="text-gray-400 mb-8">Log, monitor and resolve electrical faults across all machines</p>
 
         <!-- Stats Cards -->
-        <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+        <div class="grid grid-cols-5 gap-4 mb-8">
             <div class="card p-6 rounded-3xl text-center">
                 <p class="text-gray-400 text-sm">Total logged</p>
                 <p class="text-5xl font-bold">{{ total_logged }}</p>
@@ -62,23 +62,14 @@
             </div>
         </div>
 
-        <!-- Filters -->
-        <div class="flex flex-wrap gap-4 mb-6">
-            <select class="bg-gray-800 px-5 py-3 rounded-2xl text-sm">
-                <option>All statuses</option>
-            </select>
-            <select class="bg-gray-800 px-5 py-3 rounded-2xl text-sm">
-                <option>All machines</option>
-            </select>
-            <select class="bg-gray-800 px-5 py-3 rounded-2xl text-sm">
-                <option>All priorities</option>
-            </select>
-            <button class="ml-auto bg-blue-600 hover:bg-blue-700 px-8 py-3 rounded-2xl font-medium flex items-center gap-2">
-                + Log breakdown
-            </button>
+        <!-- Interactive Charts -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            <div class="card rounded-3xl p-6"><h3 class="font-semibold mb-4">Daily Breakdown Trend</h3><div id="trendChart" class="h-80"></div></div>
+            <div class="card rounded-3xl p-6"><h3 class="font-semibold mb-4">Breakdowns by Machine</h3><div id="sectionChart" class="h-80"></div></div>
+            <div class="card rounded-3xl p-6"><h3 class="font-semibold mb-4">Priority Distribution</h3><div id="priorityChart" class="h-80"></div></div>
         </div>
 
-        <!-- Advanced Table -->
+        <!-- Table -->
         <div class="card rounded-3xl overflow-hidden">
             <table id="breakdownTable" class="w-full text-sm">
                 <thead>
@@ -95,23 +86,13 @@
                 <tbody>
                     {% for r in records %}
                     <tr class="border-b border-gray-700 hover:bg-gray-800">
-                        <td class="p-5 font-medium">{{ r.ID or r.id or '-' }}</td>
+                        <td class="p-5">{{ r.ID or r.id or '-' }}</td>
                         <td class="p-5">{{ r.Machine or r.machine or '-' }}</td>
                         <td class="p-5">{{ r['Fault type'] or r.fault_type or r['Fault Type'] or '-' }}</td>
-                        <td class="p-5">
-                            <span class="px-4 py-1 rounded-full text-xs font-medium"
-                                  style="background: {% if 'Critical' in (r.Priority or r.priority or '') %}#ef4444{% elif 'High' in (r.Priority or r.priority or '') %}#f59e0b{% else %}#3b82f6{% endif %}; color:white;">
-                                {{ r.Priority or r.priority or 'Medium' }}
-                            </span>
-                        </td>
-                        <td class="p-5">
-                            <span class="px-5 py-1 rounded-3xl text-xs font-medium"
-                                  style="background: {% if 'Open' in (r.Status or r.status or '') %}#f59e0b{% elif 'Progress' in (r.Status or r.status or '') %}#8b5cf6{% elif 'Resolved' in (r.Status or r.status or '') %}#10b981{% else %}#6b7280{% endif %}; color:white;">
-                                {{ r.Status or r.status or 'Open' }}
-                            </span>
-                        </td>
+                        <td class="p-5">{{ r.Priority or r.priority or '-' }}</td>
+                        <td class="p-5">{{ r.Status or r.status or '-' }}</td>
                         <td class="p-5">{{ r['Assigned to'] or r.assigned_to or '-' }}</td>
-                        <td class="p-5">{{ r['DT (h)'] or r.dt or r['Downtime'] or '-' }}</td>
+                        <td class="p-5">{{ r['DT (h)'] or r.dt or '-' }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -121,13 +102,16 @@
 </div>
 
 <script>
+    const trendData = {{ trendJSON | safe }};
+    const sectionData = {{ sectionJSON | safe }};
+    const priorityData = {{ priorityJSON | safe }};
+
+    Plotly.newPlot('trendChart', trendData.data, trendData.layout);
+    Plotly.newPlot('sectionChart', sectionData.data, sectionData.layout);
+    Plotly.newPlot('priorityChart', priorityData.data, priorityData.layout);
+
     $(document).ready(function() {
-        $('#breakdownTable').DataTable({
-            pageLength: 15,
-            responsive: true,
-            ordering: true,
-            searching: true
-        });
+        $('#breakdownTable').DataTable({ pageLength: 15, responsive: true });
     });
 </script>
 </body>
