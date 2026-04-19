@@ -11,127 +11,124 @@
     <style>
         body { background-color: #111827; color: #e5e7eb; }
         .card { background-color: #1f2937; }
-        .status-open { background-color: #f59e0b; color: white; }
-        .status-progress { background-color: #8b5cf6; color: white; }
-        .status-resolved { background-color: #10b981; color: white; }
+        .sidebar-active { background-color: #3b82f6; color: white; }
     </style>
 </head>
-<body>
-    <div class="flex h-screen">
-        <!-- Sidebar -->
-        <div class="w-64 bg-gray-900 p-6 flex flex-col">
-            <div class="flex items-center gap-3 mb-10">
-                <span class="text-3xl">⚡</span>
-                <div>
-                    <h1 class="text-2xl font-bold">ElecBreak</h1>
-                    <p class="text-xs text-gray-400">Wire manufacturing breakdown system</p>
-                </div>
-            </div>
-            <nav class="space-y-2">
-                <a href="#" class="flex items-center gap-3 px-4 py-3 bg-blue-600 rounded-xl text-white">📋 Tracker</a>
-                <a href="#" class="flex items-center gap-3 px-4 py-3 hover:bg-gray-800 rounded-xl">📊 Board</a>
-                <a href="#" class="flex items-center gap-3 px-4 py-3 hover:bg-gray-800 rounded-xl">📈 Analytics</a>
-                <a href="#" class="flex items-center gap-3 px-4 py-3 hover:bg-gray-800 rounded-xl">⏳ Downtime</a>
-                <a href="#" class="flex items-center gap-3 px-4 py-3 hover:bg-gray-800 rounded-xl">📤 Export</a>
-            </nav>
-        </div>
-
-        <!-- Main Content -->
-        <div class="flex-1 p-8 overflow-auto">
-            <h1 class="text-3xl font-bold mb-1">Breakdown tracker</h1>
-            <p class="text-gray-400 mb-8">Log, monitor and resolve electrical faults across all machines</p>
-
-            <!-- Stats -->
-            <div class="grid grid-cols-5 gap-4 mb-8">
-                <div class="card p-6 rounded-2xl text-center">
-                    <p class="text-gray-400 text-sm">Total logged</p>
-                    <p class="text-4xl font-bold">{{ total_logged }}</p>
-                </div>
-                <div class="card p-6 rounded-2xl text-center">
-                    <p class="text-gray-400 text-sm">Open</p>
-                    <p class="text-4xl font-bold text-orange-400">{{ open_count }}</p>
-                </div>
-                <div class="card p-6 rounded-2xl text-center">
-                    <p class="text-gray-400 text-sm">In progress</p>
-                    <p class="text-4xl font-bold text-purple-400">{{ in_progress }}</p>
-                </div>
-                <div class="card p-6 rounded-2xl text-center">
-                    <p class="text-gray-400 text-sm">Resolved</p>
-                    <p class="text-4xl font-bold text-green-400">{{ resolved }}</p>
-                </div>
-                <div class="card p-6 rounded-2xl text-center">
-                    <p class="text-gray-400 text-sm">Total downtime</p>
-                    <p class="text-4xl font-bold text-white">11.0h</p>
-                </div>
-            </div>
-
-            <!-- Filters + Button -->
-            <div class="flex items-center justify-between mb-6">
-                <div class="flex gap-4">
-                    <select class="bg-gray-800 px-4 py-2 rounded-lg">
-                        <option>All statuses</option>
-                    </select>
-                    <select class="bg-gray-800 px-4 py-2 rounded-lg">
-                        <option>All machines</option>
-                    </select>
-                    <select class="bg-gray-800 px-4 py-2 rounded-lg">
-                        <option>All priorities</option>
-                    </select>
-                </div>
-                <button class="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-xl font-medium flex items-center gap-2">
-                    + Log breakdown
-                </button>
-            </div>
-
-            <!-- Table -->
-            <div class="card rounded-2xl overflow-hidden">
-                <table id="breakdownTable" class="w-full text-sm">
-                    <thead>
-                        <tr class="border-b border-gray-700">
-                            <th class="text-left p-4">ID</th>
-                            <th class="text-left p-4">Machine</th>
-                            <th class="text-left p-4">Fault type</th>
-                            <th class="text-left p-4">Priority</th>
-                            <th class="text-left p-4">Status</th>
-                            <th class="text-left p-4">Assigned to</th>
-                            <th class="text-left p-4">DT (h)</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for r in records %}
-                        <tr class="border-b border-gray-700 hover:bg-gray-800">
-                            <td class="p-4 font-medium">{{ r.ID or r.id or '-' }}</td>
-                            <td class="p-4">{{ r.Machine or r.machine or '-' }}</td>
-                            <td class="p-4">{{ r['Fault type'] or r.fault_type or r['Fault Type'] or '-' }}</td>
-                            <td class="p-4">
-                                <span class="px-3 py-1 rounded-full text-xs font-medium"
-                                      style="background-color: {% if r.Priority == 'Critical' or r.priority == 'Critical' %}#ef4444{% elif r.Priority == 'High' %}#f59e0b{% else %}#3b82f6{% endif %}; color:white;">
-                                    {{ r.Priority or r.priority or 'Medium' }}
-                                </span>
-                            </td>
-                            <td class="p-4">
-                                <span class="px-4 py-1 rounded-full text-xs font-medium status-{{ (r.Status or r.status or 'open')|lower }}">
-                                    {{ r.Status or r.status or 'Open' }}
-                                </span>
-                            </td>
-                            <td class="p-4">{{ r['Assigned to'] or r.assigned_to or '-' }}</td>
-                            <td class="p-4">{{ r['DT (h)'] or r.dt or r.downtime or '-' }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+<body class="flex h-screen overflow-hidden">
+    <!-- Sidebar -->
+    <div class="w-64 bg-gray-900 p-6 flex flex-col">
+        <div class="flex items-center gap-3 mb-10">
+            <span class="text-4xl">⚡</span>
+            <div>
+                <h1 class="text-3xl font-bold">ElecBreak</h1>
+                <p class="text-xs text-gray-400">Wire manufacturing breakdown system</p>
             </div>
         </div>
+        <nav class="space-y-1">
+            <a href="#" class="sidebar-active flex items-center gap-3 px-4 py-3 rounded-2xl">📋 Tracker</a>
+            <a href="#" class="flex items-center gap-3 px-4 py-3 hover:bg-gray-800 rounded-2xl">📊 Board</a>
+            <a href="#" class="flex items-center gap-3 px-4 py-3 hover:bg-gray-800 rounded-2xl">📈 Analytics</a>
+            <a href="#" class="flex items-center gap-3 px-4 py-3 hover:bg-gray-800 rounded-2xl">⏳ Downtime</a>
+            <a href="#" class="flex items-center gap-3 px-4 py-3 hover:bg-gray-800 rounded-2xl">📤 Export</a>
+        </nav>
     </div>
 
-    <script>
-        $(document).ready(function() {
-            $('#breakdownTable').DataTable({
-                pageLength: 10,
-                ordering: true,
-                searching: true
-            });
+    <!-- Main Content -->
+    <div class="flex-1 p-8 overflow-auto">
+        <h1 class="text-4xl font-bold mb-1">Breakdown tracker</h1>
+        <p class="text-gray-400 mb-8">Log, monitor and resolve electrical faults across all machines</p>
+
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+            <div class="card p-6 rounded-3xl text-center">
+                <p class="text-gray-400 text-sm">Total logged</p>
+                <p class="text-5xl font-bold">{{ total_logged }}</p>
+            </div>
+            <div class="card p-6 rounded-3xl text-center">
+                <p class="text-gray-400 text-sm">Open</p>
+                <p class="text-5xl font-bold text-orange-400">{{ open_count }}</p>
+            </div>
+            <div class="card p-6 rounded-3xl text-center">
+                <p class="text-gray-400 text-sm">In progress</p>
+                <p class="text-5xl font-bold text-purple-400">{{ in_progress }}</p>
+            </div>
+            <div class="card p-6 rounded-3xl text-center">
+                <p class="text-gray-400 text-sm">Resolved</p>
+                <p class="text-5xl font-bold text-green-400">{{ resolved }}</p>
+            </div>
+            <div class="card p-6 rounded-3xl text-center">
+                <p class="text-gray-400 text-sm">Total downtime</p>
+                <p class="text-5xl font-bold">11.0h</p>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="flex flex-wrap gap-4 mb-6">
+            <select class="bg-gray-800 px-5 py-3 rounded-2xl text-sm">
+                <option>All statuses</option>
+            </select>
+            <select class="bg-gray-800 px-5 py-3 rounded-2xl text-sm">
+                <option>All machines</option>
+            </select>
+            <select class="bg-gray-800 px-5 py-3 rounded-2xl text-sm">
+                <option>All priorities</option>
+            </select>
+            <button class="ml-auto bg-blue-600 hover:bg-blue-700 px-8 py-3 rounded-2xl font-medium flex items-center gap-2">
+                + Log breakdown
+            </button>
+        </div>
+
+        <!-- Advanced Table -->
+        <div class="card rounded-3xl overflow-hidden">
+            <table id="breakdownTable" class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-gray-700">
+                        <th class="p-5 text-left">ID</th>
+                        <th class="p-5 text-left">Machine</th>
+                        <th class="p-5 text-left">Fault type</th>
+                        <th class="p-5 text-left">Priority</th>
+                        <th class="p-5 text-left">Status</th>
+                        <th class="p-5 text-left">Assigned to</th>
+                        <th class="p-5 text-left">DT (h)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in records %}
+                    <tr class="border-b border-gray-700 hover:bg-gray-800">
+                        <td class="p-5 font-medium">{{ r.ID or r.id or '-' }}</td>
+                        <td class="p-5">{{ r.Machine or r.machine or '-' }}</td>
+                        <td class="p-5">{{ r['Fault type'] or r.fault_type or r['Fault Type'] or '-' }}</td>
+                        <td class="p-5">
+                            <span class="px-4 py-1 rounded-full text-xs font-medium"
+                                  style="background: {% if 'Critical' in (r.Priority or r.priority or '') %}#ef4444{% elif 'High' in (r.Priority or r.priority or '') %}#f59e0b{% else %}#3b82f6{% endif %}; color:white;">
+                                {{ r.Priority or r.priority or 'Medium' }}
+                            </span>
+                        </td>
+                        <td class="p-5">
+                            <span class="px-5 py-1 rounded-3xl text-xs font-medium"
+                                  style="background: {% if 'Open' in (r.Status or r.status or '') %}#f59e0b{% elif 'Progress' in (r.Status or r.status or '') %}#8b5cf6{% elif 'Resolved' in (r.Status or r.status or '') %}#10b981{% else %}#6b7280{% endif %}; color:white;">
+                                {{ r.Status or r.status or 'Open' }}
+                            </span>
+                        </td>
+                        <td class="p-5">{{ r['Assigned to'] or r.assigned_to or '-' }}</td>
+                        <td class="p-5">{{ r['DT (h)'] or r.dt or r['Downtime'] or '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function() {
+        $('#breakdownTable').DataTable({
+            pageLength: 15,
+            responsive: true,
+            ordering: true,
+            searching: true
         });
-    </script>
+    });
+</script>
 </body>
 </html>
