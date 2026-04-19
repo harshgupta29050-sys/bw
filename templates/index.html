@@ -3,106 +3,135 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Breakdown Analytics Dashboard</title>
+    <title>ElecBreak - Breakdown Tracker</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
     <style>
-        body { background-color: #0a0a0a; color: #e5e5e5; }
+        body { background-color: #111827; color: #e5e7eb; }
         .card { background-color: #1f2937; }
+        .status-open { background-color: #f59e0b; color: white; }
+        .status-progress { background-color: #8b5cf6; color: white; }
+        .status-resolved { background-color: #10b981; color: white; }
     </style>
 </head>
-<body class="min-h-screen">
-    <div class="max-w-7xl mx-auto p-6">
-        <!-- Header -->
-        <div class="flex justify-between items-center mb-8">
-            <div class="flex items-center gap-4">
-                <div class="text-4xl">📊</div>
+<body>
+    <div class="flex h-screen">
+        <!-- Sidebar -->
+        <div class="w-64 bg-gray-900 p-6 flex flex-col">
+            <div class="flex items-center gap-3 mb-10">
+                <span class="text-3xl">⚡</span>
                 <div>
-                    <h1 class="text-3xl font-bold">Breakdown Analytics Dashboard</h1>
-                    <p class="text-gray-400">Real-Time Monitoring System — Electrical Maintenance Division</p>
+                    <h1 class="text-2xl font-bold">ElecBreak</h1>
+                    <p class="text-xs text-gray-400">Wire manufacturing breakdown system</p>
                 </div>
             </div>
-            <div class="flex items-center gap-6">
-                <span class="bg-green-600 text-white px-6 py-2 rounded-full flex items-center gap-2 font-medium">
-                    <span class="w-3 h-3 bg-white rounded-full animate-pulse"></span> LIVE
-                </span>
-                <button class="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-lg">Force Refresh</button>
-            </div>
+            <nav class="space-y-2">
+                <a href="#" class="flex items-center gap-3 px-4 py-3 bg-blue-600 rounded-xl text-white">📋 Tracker</a>
+                <a href="#" class="flex items-center gap-3 px-4 py-3 hover:bg-gray-800 rounded-xl">📊 Board</a>
+                <a href="#" class="flex items-center gap-3 px-4 py-3 hover:bg-gray-800 rounded-xl">📈 Analytics</a>
+                <a href="#" class="flex items-center gap-3 px-4 py-3 hover:bg-gray-800 rounded-xl">⏳ Downtime</a>
+                <a href="#" class="flex items-center gap-3 px-4 py-3 hover:bg-gray-800 rounded-xl">📤 Export</a>
+            </nav>
         </div>
 
-        <!-- Stats Cards -->
-        <div class="grid grid-cols-4 gap-4 mb-8">
-            <div class="card p-6 rounded-2xl text-center">
-                <p class="text-gray-400 text-sm">TOTAL BREAKDOWNS</p>
-                <p class="text-5xl font-bold text-white">{{ total }}</p>
-            </div>
-            <div class="card p-6 rounded-2xl text-center">
-                <p class="text-gray-400 text-sm">TODAY LIVE</p>
-                <p class="text-5xl font-bold text-orange-400">333</p>
-            </div>
-            <div class="card p-6 rounded-2xl text-center">
-                <p class="text-gray-400 text-sm">TRIPPING</p>
-                <p class="text-5xl font-bold text-red-400">13</p>
-            </div>
-            <div class="card p-6 rounded-2xl text-center">
-                <p class="text-gray-400 text-sm">AVG DURATION</p>
-                <p class="text-5xl font-bold text-green-400">30m</p>
-            </div>
-        </div>
+        <!-- Main Content -->
+        <div class="flex-1 p-8 overflow-auto">
+            <h1 class="text-3xl font-bold mb-1">Breakdown tracker</h1>
+            <p class="text-gray-400 mb-8">Log, monitor and resolve electrical faults across all machines</p>
 
-        <!-- Breakdown List -->
-        <div class="card rounded-2xl p-6 mb-8">
-            <h2 class="text-xl font-semibold mb-4">Live Breakdowns</h2>
-            <table id="breakdownTable" class="w-full text-sm">
-                <thead>
-                    <tr class="border-b border-gray-700">
-                        <th class="text-left py-3">TIME</th>
-                        <th class="text-left py-3">MACHINE</th>
-                        <th class="text-left py-3">PROBLEM</th>
-                        <th class="text-left py-3">SECTION</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for record in records %}
-                    <tr class="border-b border-gray-800 hover:bg-gray-800">
-                        <td class="py-4">{{ record.Time or record.time or '-' }}</td>
-                        <td class="py-4 font-medium">{{ record.Machine or record.machine or '-' }}</td>
-                        <td class="py-4">{{ record.Problem or record.problem or '-' }}</td>
-                        <td class="py-4">
-                            <span class="bg-blue-900 text-blue-300 px-3 py-1 rounded-full text-xs">{{ record.Section or record.section or '-' }}</span>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+            <!-- Stats -->
+            <div class="grid grid-cols-5 gap-4 mb-8">
+                <div class="card p-6 rounded-2xl text-center">
+                    <p class="text-gray-400 text-sm">Total logged</p>
+                    <p class="text-4xl font-bold">{{ total_logged }}</p>
+                </div>
+                <div class="card p-6 rounded-2xl text-center">
+                    <p class="text-gray-400 text-sm">Open</p>
+                    <p class="text-4xl font-bold text-orange-400">{{ open_count }}</p>
+                </div>
+                <div class="card p-6 rounded-2xl text-center">
+                    <p class="text-gray-400 text-sm">In progress</p>
+                    <p class="text-4xl font-bold text-purple-400">{{ in_progress }}</p>
+                </div>
+                <div class="card p-6 rounded-2xl text-center">
+                    <p class="text-gray-400 text-sm">Resolved</p>
+                    <p class="text-4xl font-bold text-green-400">{{ resolved }}</p>
+                </div>
+                <div class="card p-6 rounded-2xl text-center">
+                    <p class="text-gray-400 text-sm">Total downtime</p>
+                    <p class="text-4xl font-bold text-white">11.0h</p>
+                </div>
+            </div>
 
-        <!-- Daily Breakdown Trend -->
-        <div class="card rounded-2xl p-6">
-            <h2 class="text-xl font-semibold mb-4">Daily Breakdown Trend</h2>
-            <div id="trendChart" class="w-full"></div>
+            <!-- Filters + Button -->
+            <div class="flex items-center justify-between mb-6">
+                <div class="flex gap-4">
+                    <select class="bg-gray-800 px-4 py-2 rounded-lg">
+                        <option>All statuses</option>
+                    </select>
+                    <select class="bg-gray-800 px-4 py-2 rounded-lg">
+                        <option>All machines</option>
+                    </select>
+                    <select class="bg-gray-800 px-4 py-2 rounded-lg">
+                        <option>All priorities</option>
+                    </select>
+                </div>
+                <button class="bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-xl font-medium flex items-center gap-2">
+                    + Log breakdown
+                </button>
+            </div>
+
+            <!-- Table -->
+            <div class="card rounded-2xl overflow-hidden">
+                <table id="breakdownTable" class="w-full text-sm">
+                    <thead>
+                        <tr class="border-b border-gray-700">
+                            <th class="text-left p-4">ID</th>
+                            <th class="text-left p-4">Machine</th>
+                            <th class="text-left p-4">Fault type</th>
+                            <th class="text-left p-4">Priority</th>
+                            <th class="text-left p-4">Status</th>
+                            <th class="text-left p-4">Assigned to</th>
+                            <th class="text-left p-4">DT (h)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in records %}
+                        <tr class="border-b border-gray-700 hover:bg-gray-800">
+                            <td class="p-4 font-medium">{{ r.ID or r.id or '-' }}</td>
+                            <td class="p-4">{{ r.Machine or r.machine or '-' }}</td>
+                            <td class="p-4">{{ r['Fault type'] or r.fault_type or r['Fault Type'] or '-' }}</td>
+                            <td class="p-4">
+                                <span class="px-3 py-1 rounded-full text-xs font-medium"
+                                      style="background-color: {% if r.Priority == 'Critical' or r.priority == 'Critical' %}#ef4444{% elif r.Priority == 'High' %}#f59e0b{% else %}#3b82f6{% endif %}; color:white;">
+                                    {{ r.Priority or r.priority or 'Medium' }}
+                                </span>
+                            </td>
+                            <td class="p-4">
+                                <span class="px-4 py-1 rounded-full text-xs font-medium status-{{ (r.Status or r.status or 'open')|lower }}">
+                                    {{ r.Status or r.status or 'Open' }}
+                                </span>
+                            </td>
+                            <td class="p-4">{{ r['Assigned to'] or r.assigned_to or '-' }}</td>
+                            <td class="p-4">{{ r['DT (h)'] or r.dt or r.downtime or '-' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
     <script>
-        // Plotly Chart
-        const graphData = {{ graphJSON | safe }};
-        Plotly.newPlot('trendChart', graphData.data, graphData.layout);
-
-        // DataTable for searchable table
         $(document).ready(function() {
             $('#breakdownTable').DataTable({
-                pageLength: 15,
+                pageLength: 10,
                 ordering: true,
                 searching: true
             });
         });
-
-        // Auto-refresh every 30 seconds
-        setTimeout(() => location.reload(), 30000);
     </script>
 </body>
 </html>
