@@ -7,8 +7,7 @@ app = Flask(__name__)
 
 SHEET_ID   = "1P34KUrokZFbE5PqLOXkSc6EviKUqzGtpEiBOMmseh1Q"
 SHEET_NAME = "Form Responses 1"
-URL = (f"https://docs.google.com/spreadsheets/d/{SHEET_ID}"
-       f"/gviz/tq?tqx=out:json&sheet={SHEET_NAME}")
+URL = ("https://docs.google.com/spreadsheets/d/1P34KUrokZFbE5PqLOXkSc6EviKUqzGtpEiBOMmseh1Q/edit?usp=sharing")
 
 
 # ─── HELPERS ────────────────────────────────────────────────────────
