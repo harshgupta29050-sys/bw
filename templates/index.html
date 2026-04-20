@@ -1,118 +1,470 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ElecBreak - Breakdown Tracker</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
-    <style>
-        body { background-color: #111827; color: #e5e7eb; }
-        .card { background-color: #1f2937; }
-    </style>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Breakdown Analytics Dashboard | RTMS</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#07090e;--surf:#0f1219;--surf2:#151922;--border:#1c2132;
+  --orange:#f97316;--blue:#38bdf8;--green:#4ade80;--red:#f87171;--purple:#c084fc;--yellow:#fbbf24;
+  --text:#dde3f0;--muted:#4b5a72;--head:'Rajdhani',sans-serif;--mono:'IBM Plex Mono',monospace;--body:'DM Sans',sans-serif;
+  --r:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--body)}
+
+/* noise texture */
+body::after{content:'';position:fixed;inset:0;pointer-events:none;opacity:.03;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+/* ── HEADER ── */
+header{
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;
+  padding:13px 24px;background:var(--surf);border-bottom:1px solid var(--border);
+  position:sticky;top:0;z-index:200;
+}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-mark{
+  width:38px;height:38px;border-radius:9px;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(135deg,#f97316,#dc2626);font-family:var(--head);
+  font-size:20px;font-weight:700;color:#fff;box-shadow:0 0 18px rgba(249,115,22,.3);flex-shrink:0;
+}
+.logo-name{font-family:var(--head);font-size:19px;font-weight:700;letter-spacing:.07em}
+.logo-sub{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.18em;text-transform:uppercase;margin-top:1px}
+.hdr-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.badge{display:flex;align-items:center;gap:5px;padding:4px 11px;border-radius:20px;font-family:var(--mono);font-size:10px}
+.live{background:rgba(74,222,128,.07);border:1px solid rgba(74,222,128,.2);color:var(--green)}
+.dot{width:5px;height:5px;border-radius:50%;background:currentColor;animation:blink 1.5s ease infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.ts{font-family:var(--mono);font-size:10px;color:var(--muted)}
+.btn{
+  background:rgba(255,255,255,.04);border:1px solid var(--border);color:var(--muted);
+  padding:6px 14px;border-radius:8px;cursor:pointer;font-family:var(--mono);font-size:11px;
+  letter-spacing:.06em;transition:all .18s;
+}
+.btn:hover{background:rgba(249,115,22,.1);border-color:var(--orange);color:var(--orange)}
+
+/* date filter */
+.date-filter{display:flex;align-items:center;gap:6px}
+.date-filter input{
+  background:var(--surf2);border:1px solid var(--border);color:var(--text);border-radius:7px;
+  padding:5px 10px;font-family:var(--mono);font-size:11px;outline:none;
+  color-scheme:dark;
+}
+.date-filter input:focus{border-color:var(--orange)}
+.date-filter label{font-family:var(--mono);font-size:10px;color:var(--muted)}
+
+/* ── MAIN ── */
+main{padding:20px 24px;display:flex;flex-direction:column;gap:20px}
+
+/* section headers */
+.sec-hdr{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.sec-hdr span{font-family:var(--mono);font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
+.sec-hdr::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* ── KPI STRIP ── */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:14px}
+.kpi{
+  background:var(--surf);border:1px solid var(--border);border-radius:var(--r);
+  padding:16px 18px;position:relative;overflow:hidden;transition:border-color .2s,transform .2s;
+}
+.kpi:hover{border-color:var(--kc);transform:translateY(-1px)}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--kc)}
+.kpi-lbl{font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase;margin-bottom:7px}
+.kpi-val{font-family:var(--head);font-size:34px;font-weight:700;line-height:1;color:var(--kc)}
+.kpi-unit{font-size:13px;font-weight:500;margin-left:1px;color:var(--muted)}
+.kpi-ico{position:absolute;right:14px;top:14px;font-size:26px;opacity:.12}
+
+/* ── CHART CARDS ── */
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+.card{
+  background:var(--surf);border:1px solid var(--border);border-radius:var(--r);
+  padding:18px;display:flex;flex-direction:column;gap:14px;transition:border-color .2s;
+}
+.card:hover{border-color:rgba(249,115,22,.2)}
+.card.wide{grid-column:1/-1}
+.card-hdr{display:flex;align-items:flex-start;justify-content:space-between}
+.card-title{font-family:var(--head);font-size:14px;font-weight:600;letter-spacing:.04em}
+.card-sub{font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:2px;letter-spacing:.05em}
+.tag{
+  font-family:var(--mono);font-size:9px;padding:2px 8px;border-radius:20px;
+  background:rgba(249,115,22,.07);border:1px solid rgba(249,115,22,.18);color:var(--orange);
+  white-space:nowrap;
+}
+.cw{position:relative;width:100%}
+.cw canvas{width:100%!important}
+
+/* ── TABLE ── */
+.tbl-card{background:var(--surf);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+.tbl-top{
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;
+  padding:14px 18px;border-bottom:1px solid var(--border);
+}
+.tbl-title{font-family:var(--head);font-size:15px;font-weight:600;letter-spacing:.04em}
+.tbl-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.srch{
+  background:var(--surf2);border:1px solid var(--border);border-radius:7px;
+  padding:6px 12px;color:var(--text);font-family:var(--mono);font-size:11px;
+  outline:none;width:200px;transition:border-color .2s;
+}
+.srch:focus{border-color:var(--orange)}
+select.srch{cursor:pointer}
+.tbl-wrap{overflow:auto;max-height:400px}
+table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px}
+thead th{
+  background:var(--surf2);color:var(--muted);padding:9px 12px;text-align:left;
+  font-size:9px;letter-spacing:.1em;text-transform:uppercase;position:sticky;top:0;
+  white-space:nowrap;border-bottom:1px solid var(--border);
+}
+tbody tr{border-bottom:1px solid rgba(255,255,255,.02);transition:background .12s}
+tbody tr:hover{background:rgba(255,255,255,.02)}
+tbody td{padding:8px 12px;white-space:nowrap;max-width:260px;overflow:hidden;text-overflow:ellipsis}
+.yes{display:inline-block;padding:2px 7px;border-radius:4px;font-size:9px;font-weight:600;letter-spacing:.07em;
+     background:rgba(248,113,113,.1);color:var(--red);border:1px solid rgba(248,113,113,.2)}
+.no {display:inline-block;padding:2px 7px;border-radius:4px;font-size:9px;font-weight:600;letter-spacing:.07em;
+     background:rgba(74,222,128,.08);color:var(--green);border:1px solid rgba(74,222,128,.18)}
+
+/* ── LOADING / ERROR ── */
+#overlay{
+  position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:14px;z-index:999;
+}
+.spin{width:42px;height:42px;border:3px solid var(--border);border-top-color:var(--orange);
+      border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.ovl-txt{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.12em}
+.err{background:rgba(248,113,113,.06);border:1px solid rgba(248,113,113,.2);border-radius:12px;
+     padding:20px 28px;max-width:460px;text-align:center}
+.err-t{font-family:var(--head);font-size:17px;color:var(--red);margin-bottom:8px}
+.err-m{font-family:var(--mono);font-size:11px;color:var(--muted);line-height:1.7}
+
+/* scrollbar */
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+@media(max-width:700px){
+  main{padding:14px}header{padding:10px 14px}
+  .logo-name{font-size:15px}.date-filter{display:none}
+}
+</style>
 </head>
-<body class="flex h-screen overflow-hidden">
-    <!-- Sidebar -->
-    <div class="w-64 bg-gray-900 p-6 flex flex-col">
-        <div class="flex items-center gap-3 mb-10">
-            <span class="text-4xl">⚡</span>
-            <div>
-                <h1 class="text-3xl font-bold">ElecBreak</h1>
-                <p class="text-xs text-gray-400">Wire manufacturing breakdown system</p>
-            </div>
-        </div>
-        <nav class="space-y-1">
-            <a href="#" class="flex items-center gap-3 px-4 py-3 bg-blue-600 rounded-2xl">📋 Tracker</a>
-            <a href="#" class="flex items-center gap-3 px-4 py-3 hover:bg-gray-800 rounded-2xl">📊 Board</a>
-            <a href="#" class="flex items-center gap-3 px-4 py-3 hover:bg-gray-800 rounded-2xl">📈 Analytics</a>
-            <a href="#" class="flex items-center gap-3 px-4 py-3 hover:bg-gray-800 rounded-2xl">⏳ Downtime</a>
-            <a href="#" class="flex items-center gap-3 px-4 py-3 hover:bg-gray-800 rounded-2xl">📤 Export</a>
-        </nav>
-    </div>
+<body>
 
-    <!-- Main Content -->
-    <div class="flex-1 p-8 overflow-auto">
-        <h1 class="text-4xl font-bold mb-1">Breakdown tracker</h1>
-        <p class="text-gray-400 mb-8">Log, monitor and resolve electrical faults across all machines</p>
-
-        <!-- Stats Cards -->
-        <div class="grid grid-cols-5 gap-4 mb-8">
-            <div class="card p-6 rounded-3xl text-center">
-                <p class="text-gray-400 text-sm">Total logged</p>
-                <p class="text-5xl font-bold">{{ total_logged }}</p>
-            </div>
-            <div class="card p-6 rounded-3xl text-center">
-                <p class="text-gray-400 text-sm">Open</p>
-                <p class="text-5xl font-bold text-orange-400">{{ open_count }}</p>
-            </div>
-            <div class="card p-6 rounded-3xl text-center">
-                <p class="text-gray-400 text-sm">In progress</p>
-                <p class="text-5xl font-bold text-purple-400">{{ in_progress }}</p>
-            </div>
-            <div class="card p-6 rounded-3xl text-center">
-                <p class="text-gray-400 text-sm">Resolved</p>
-                <p class="text-5xl font-bold text-green-400">{{ resolved }}</p>
-            </div>
-            <div class="card p-6 rounded-3xl text-center">
-                <p class="text-gray-400 text-sm">Total downtime</p>
-                <p class="text-5xl font-bold">11.0h</p>
-            </div>
-        </div>
-
-        <!-- Interactive Charts -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-            <div class="card rounded-3xl p-6"><h3 class="font-semibold mb-4">Daily Breakdown Trend</h3><div id="trendChart" class="h-80"></div></div>
-            <div class="card rounded-3xl p-6"><h3 class="font-semibold mb-4">Breakdowns by Machine</h3><div id="sectionChart" class="h-80"></div></div>
-            <div class="card rounded-3xl p-6"><h3 class="font-semibold mb-4">Priority Distribution</h3><div id="priorityChart" class="h-80"></div></div>
-        </div>
-
-        <!-- Table -->
-        <div class="card rounded-3xl overflow-hidden">
-            <table id="breakdownTable" class="w-full text-sm">
-                <thead>
-                    <tr class="border-b border-gray-700">
-                        <th class="p-5 text-left">ID</th>
-                        <th class="p-5 text-left">Machine</th>
-                        <th class="p-5 text-left">Fault type</th>
-                        <th class="p-5 text-left">Priority</th>
-                        <th class="p-5 text-left">Status</th>
-                        <th class="p-5 text-left">Assigned to</th>
-                        <th class="p-5 text-left">DT (h)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for r in records %}
-                    <tr class="border-b border-gray-700 hover:bg-gray-800">
-                        <td class="p-5">{{ r.ID or r.id or '-' }}</td>
-                        <td class="p-5">{{ r.Machine or r.machine or '-' }}</td>
-                        <td class="p-5">{{ r['Fault type'] or r.fault_type or r['Fault Type'] or '-' }}</td>
-                        <td class="p-5">{{ r.Priority or r.priority or '-' }}</td>
-                        <td class="p-5">{{ r.Status or r.status or '-' }}</td>
-                        <td class="p-5">{{ r['Assigned to'] or r.assigned_to or '-' }}</td>
-                        <td class="p-5">{{ r['DT (h)'] or r.dt or '-' }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
+<div id="overlay">
+  <div class="spin"></div>
+  <div class="ovl-txt">LOADING FROM GOOGLE SHEETS…</div>
 </div>
 
+<div id="app" style="display:none">
+
+<!-- ── HEADER ── -->
+<header>
+  <div class="logo">
+    <div class="logo-mark">B</div>
+    <div>
+      <div class="logo-name">BREAKDOWN ANALYTICS</div>
+      <div class="logo-sub">Real-Time Monitoring System · RTMS</div>
+    </div>
+  </div>
+  <div class="hdr-right">
+    <div class="date-filter">
+      <label>FROM</label>
+      <input type="date" id="dtFrom" onchange="applyFilter()"/>
+      <label>TO</label>
+      <input type="date" id="dtTo" onchange="applyFilter()"/>
+    </div>
+    <div class="badge live"><div class="dot"></div>LIVE</div>
+    <span class="ts" id="ts">—</span>
+    <button class="btn" onclick="loadData()">⟳ REFRESH</button>
+  </div>
+</header>
+
+<main>
+
+<!-- KPIs -->
+<div>
+  <div class="sec-hdr"><span>Key Performance Indicators</span></div>
+  <div class="kpi-grid">
+    <div class="kpi" style="--kc:#f97316">
+      <div class="kpi-lbl">Total Breakdowns</div>
+      <div class="kpi-val" id="k0">—</div>
+      <div class="kpi-ico">⚡</div>
+    </div>
+    <div class="kpi" style="--kc:#f87171">
+      <div class="kpi-lbl">Total Downtime</div>
+      <div class="kpi-val" id="k1">—<span class="kpi-unit">hrs</span></div>
+      <div class="kpi-ico">⏱</div>
+    </div>
+    <div class="kpi" style="--kc:#38bdf8">
+      <div class="kpi-lbl">Avg Duration</div>
+      <div class="kpi-val" id="k2">—<span class="kpi-unit">min</span></div>
+      <div class="kpi-ico">📊</div>
+    </div>
+    <div class="kpi" style="--kc:#f87171">
+      <div class="kpi-lbl">Production Loss</div>
+      <div class="kpi-val" id="k3">—<span class="kpi-unit">%</span></div>
+      <div class="kpi-ico">🔴</div>
+    </div>
+    <div class="kpi" style="--kc:#fbbf24">
+      <div class="kpi-lbl">Loss Incidents</div>
+      <div class="kpi-val" id="k4">—</div>
+      <div class="kpi-ico">⚠️</div>
+    </div>
+  </div>
+</div>
+
+<!-- TREND -->
+<div>
+  <div class="sec-hdr"><span>Daily Breakdown Trend</span></div>
+  <div class="card wide">
+    <div class="card-hdr">
+      <div><div class="card-title">Breakdowns per Day</div><div class="card-sub">Date-wise incident count</div></div>
+      <div class="tag">TIME SERIES</div>
+    </div>
+    <div class="cw" style="height:190px"><canvas id="cTrend"></canvas></div>
+  </div>
+</div>
+
+<!-- SECTION + PRODUCTION LOSS -->
+<div>
+  <div class="sec-hdr"><span>Section Analysis</span></div>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-hdr">
+        <div><div class="card-title">Breakdowns by Section</div><div class="card-sub">Incident count per section</div></div>
+      </div>
+      <div class="cw" style="height:230px"><canvas id="cSec"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-hdr">
+        <div><div class="card-title">Downtime by Section (hrs)</div><div class="card-sub">Total hours lost per section</div></div>
+      </div>
+      <div class="cw" style="height:230px"><canvas id="cSecDur"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-hdr">
+        <div><div class="card-title">Production Loss Split</div><div class="card-sub">With loss vs without</div></div>
+      </div>
+      <div class="cw" style="height:230px"><canvas id="cLoss"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-hdr">
+        <div><div class="card-title">Top Machines</div><div class="card-sub">Machines with most incidents</div></div>
+      </div>
+      <div class="cw" style="height:230px"><canvas id="cMach"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- BREAKDOWN TYPE + ATTENDANT -->
+<div>
+  <div class="sec-hdr"><span>Failure Type & Technician</span></div>
+  <div class="grid2">
+    <div class="card">
+      <div class="card-hdr">
+        <div><div class="card-title">Breakdown Type</div><div class="card-sub">Top failure categories</div></div>
+      </div>
+      <div class="cw" style="height:260px"><canvas id="cType"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-hdr">
+        <div><div class="card-title">Attendant Workload</div><div class="card-sub">Incidents handled per technician</div></div>
+      </div>
+      <div class="cw" style="height:260px"><canvas id="cAttn"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- TABLE -->
+<div>
+  <div class="sec-hdr"><span>Breakdown Log</span></div>
+  <div class="tbl-card">
+    <div class="tbl-top">
+      <div class="tbl-title">Incident Records <span id="tblCount" style="font-family:var(--mono);font-size:11px;color:var(--muted)"></span></div>
+      <div class="tbl-controls">
+        <select class="srch" id="filterSec" onchange="renderTable()"><option value="">All Sections</option></select>
+        <select class="srch" id="filterLoss" onchange="renderTable()">
+          <option value="">All</option><option value="YES">With Loss</option><option value="No">No Loss</option>
+        </select>
+        <input class="srch" type="text" id="tblSearch" placeholder="Search…" oninput="renderTable()"/>
+      </div>
+    </div>
+    <div class="tbl-wrap"><table><thead id="tHead"></thead><tbody id="tBody"></tbody></table></div>
+  </div>
+</div>
+
+</main>
+</div><!-- /#app -->
+
 <script>
-    const trendData = {{ trendJSON | safe }};
-    const sectionData = {{ sectionJSON | safe }};
-    const priorityData = {{ priorityJSON | safe }};
+// ─── PALETTE & CHART DEFAULTS ───────────────────────────────────────
+const P = ['#f97316','#38bdf8','#4ade80','#f87171','#c084fc','#fbbf24',
+           '#fb923c','#22d3ee','#86efac','#fca5a5','#d8b4fe','#fde68a',
+           '#ea580c','#0ea5e9','#16a34a','#dc2626'];
 
-    Plotly.newPlot('trendChart', trendData.data, trendData.layout);
-    Plotly.newPlot('sectionChart', sectionData.data, sectionData.layout);
-    Plotly.newPlot('priorityChart', priorityData.data, priorityData.layout);
+Chart.defaults.color = '#4b5a72';
+Chart.defaults.font.family = "'DM Sans',sans-serif";
 
-    $(document).ready(function() {
-        $('#breakdownTable').DataTable({ pageLength: 15, responsive: true });
+const GL  = () => ({color:'rgba(255,255,255,.03)',drawBorder:false});
+const TK  = () => ({color:'#3a4a60',font:{family:"'IBM Plex Mono'",size:9}});
+const LEG = () => ({color:'#7a90ad',font:{family:"'IBM Plex Mono'",size:10},boxWidth:9,padding:8});
+
+let charts = {}, ALL_ROWS = [], SECTIONS = [];
+
+function kill(){ Object.values(charts).forEach(c => c.destroy()); charts = {}; }
+
+// ─── CHART BUILDERS ─────────────────────────────────────────────────
+function line(id, labels, data){
+  const ctx = document.getElementById(id).getContext('2d');
+  const g = ctx.createLinearGradient(0,0,0,190);
+  g.addColorStop(0,'rgba(249,115,22,.22)');g.addColorStop(1,'rgba(249,115,22,0)');
+  return new Chart(ctx,{type:'line',data:{labels,datasets:[{data,fill:true,backgroundColor:g,
+    borderColor:'#f97316',borderWidth:2,pointRadius:3,pointBackgroundColor:'#f97316',tension:.4}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{x:{grid:GL(),ticks:{...TK(),maxTicksLimit:14,maxRotation:30}},
+              y:{grid:GL(),ticks:{...TK(),precision:0}}}}});
+}
+
+function hbar(id, labels, data, palette){
+  const ctx = document.getElementById(id).getContext('2d');
+  const colors = labels.map((_,i)=> P[i%P.length]);
+  return new Chart(ctx,{type:'bar',data:{labels,datasets:[{data,
+    backgroundColor:colors.map(c=>c+'88'),borderColor:colors,borderWidth:1,borderRadius:4}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{x:{grid:GL(),ticks:TK()},y:{grid:GL(),ticks:{...TK(),font:{size:9}}}}}});
+}
+
+function bar(id, labels, data){
+  const ctx = document.getElementById(id).getContext('2d');
+  const colors = labels.map((_,i)=> P[i%P.length]);
+  return new Chart(ctx,{type:'bar',data:{labels,datasets:[{data,
+    backgroundColor:colors.map(c=>c+'88'),borderColor:colors,borderWidth:1,borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{x:{grid:GL(),ticks:{...TK(),maxRotation:35,font:{size:9}}},y:{grid:GL(),ticks:TK()}}}});
+}
+
+function donut(id, labels, data){
+  const ctx = document.getElementById(id).getContext('2d');
+  return new Chart(ctx,{type:'doughnut',data:{labels,datasets:[{data,
+    backgroundColor:P.slice(0,labels.length),borderWidth:0,hoverOffset:5}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'62%',
+      plugins:{legend:{position:'right',labels:LEG()}}}});
+}
+
+// ─── TABLE ───────────────────────────────────────────────────────────
+const COLS = ['Date','Section','Machine','Breakdown Type','Duration (min)','Production Loss','Attendant','Slip No.'];
+
+function renderTable(){
+  const q    = document.getElementById('tblSearch').value.toLowerCase();
+  const sec  = document.getElementById('filterSec').value;
+  const loss = document.getElementById('filterLoss').value;
+
+  let data = ALL_ROWS.filter(r => {
+    if(sec  && r.Section !== sec)                   return false;
+    if(loss && r['Production Loss'].toUpperCase() !== loss.toUpperCase()) return false;
+    if(q){
+      const row = COLS.map(c => String(r[c]||'')).join(' ').toLowerCase();
+      if(!row.includes(q)) return false;
+    }
+    return true;
+  });
+
+  document.getElementById('tblCount').textContent = `(${data.length})`;
+  const head = document.getElementById('tHead');
+  const body = document.getElementById('tBody');
+
+  head.innerHTML = '<tr>'+COLS.map(c=>`<th>${c}</th>`).join('')+'</tr>';
+  body.innerHTML = data.slice(-300).reverse().map(r =>
+    '<tr>'+COLS.map(c=>{
+      const v = r[c] ?? '';
+      if(c==='Production Loss'){
+        const u = String(v).toUpperCase();
+        if(u==='YES') return `<td><span class="yes">YES</span></td>`;
+        return `<td><span class="no">NO</span></td>`;
+      }
+      return `<td title="${String(v).replace(/"/g,"'")}">${v}</td>`;
+    }).join('')+'</tr>'
+  ).join('');
+}
+
+// ─── MAIN DATA LOADER ────────────────────────────────────────────────
+async function loadData(){
+  document.getElementById('overlay').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+  try{
+    const res  = await fetch('/api/dashboard');
+    const data = await res.json();
+    if(data.error) throw new Error(data.error);
+
+    // KPIs
+    const setKPI = (id, v) => {
+      const el = document.getElementById(id);
+      const sp = el.querySelector('span');
+      el.childNodes[0].textContent = v;
+      if(sp) el.appendChild(sp);
+    };
+    document.getElementById('k0').textContent = data.kpis.total;
+    document.getElementById('k1').innerHTML   = data.kpis.total_hrs + '<span class="kpi-unit">hrs</span>';
+    document.getElementById('k2').innerHTML   = data.kpis.avg_min   + '<span class="kpi-unit">min</span>';
+    document.getElementById('k3').innerHTML   = data.kpis.loss_pct  + '<span class="kpi-unit">%</span>';
+    document.getElementById('k4').textContent = data.kpis.yes_loss;
+
+    // Populate section filter
+    const sel = document.getElementById('filterSec');
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">All Sections</option>';
+    data.by_section.labels.forEach(s => {
+      const o = document.createElement('option'); o.value = s; o.textContent = s;
+      if(s === cur) o.selected = true;
+      sel.appendChild(o);
     });
+    SECTIONS = data.by_section.labels;
+
+    kill();
+
+    // Charts
+    const tl = data.trend.map(d => d.date);
+    const td = data.trend.map(d => d.count);
+    charts.trend   = line ('cTrend',  tl, td);
+    charts.sec     = hbar ('cSec',    data.by_section.labels,   data.by_section.counts);
+    charts.secDur  = hbar ('cSecDur', data.by_section.labels,   data.by_section.durations);
+    charts.loss    = donut('cLoss',   data.by_loss.labels,      data.by_loss.counts);
+    charts.mach    = hbar ('cMach',   data.by_machine.labels,   data.by_machine.counts);
+    charts.type    = hbar ('cType',   data.by_type.labels,      data.by_type.counts);
+    charts.attn    = hbar ('cAttn',   data.by_attendant.labels, data.by_attendant.counts);
+
+    ALL_ROWS = data.rows;
+    renderTable();
+
+    document.getElementById('ts').textContent = 'Updated ' + new Date().toLocaleTimeString();
+    document.getElementById('overlay').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+  } catch(e){
+    document.getElementById('overlay').innerHTML = `
+      <div class="err">
+        <div class="err-t">⚠ Could Not Load Data</div>
+        <div class="err-m">${e.message}<br/><br/>
+          Make sure the sheet is shared publicly (Anyone with the link → Viewer)
+          and that SHEET_ID in app.py is correct.
+        </div>
+        <button class="btn" style="margin-top:14px" onclick="loadData()">RETRY</button>
+      </div>`;
+  }
+}
+
+function applyFilter(){ renderTable(); }
+
+loadData();
+setInterval(loadData, 5*60*1000);   // auto refresh every 5 min
 </script>
 </body>
 </html>
