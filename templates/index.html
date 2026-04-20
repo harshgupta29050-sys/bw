@@ -1,470 +1,1012 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Breakdown Analytics Dashboard | RTMS</title>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>RTMS · Breakdown Analytics</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Exo+2:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
 <style>
 :root{
-  --bg:#07090e;--surf:#0f1219;--surf2:#151922;--border:#1c2132;
-  --orange:#f97316;--blue:#38bdf8;--green:#4ade80;--red:#f87171;--purple:#c084fc;--yellow:#fbbf24;
-  --text:#dde3f0;--muted:#4b5a72;--head:'Rajdhani',sans-serif;--mono:'IBM Plex Mono',monospace;--body:'DM Sans',sans-serif;
-  --r:10px;
+  --bg:#050810;--surf:#090d17;--surf2:#0e1420;--surf3:#121929;
+  --border:#1a2540;--border2:#243050;
+  --or:#ff6b1a;--or2:#ff8c42;--bl:#00d4ff;--gn:#00ff88;--rd:#ff3366;--pu:#b060ff;--yw:#ffcc00;
+  --text:#c8d8f0;--muted:#3a5070;--dim:#2a3a55;
+  --head:'Orbitron',sans-serif;--mono:'JetBrains Mono',monospace;--body:'Exo 2',sans-serif;
+  --r:10px;--glow-or:0 0 20px rgba(255,107,26,.3);--glow-bl:0 0 20px rgba(0,212,255,.2);
 }
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--body)}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--body);font-size:13px;overflow-x:hidden}
 
-/* noise texture */
-body::after{content:'';position:fixed;inset:0;pointer-events:none;opacity:.03;
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)'/%3E%3C/svg%3E")}
+/* scanlines */
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.04) 2px,rgba(0,0,0,.04) 4px);
+}
+/* grid bg */
+body::after{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:linear-gradient(rgba(0,212,255,.025) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(0,212,255,.025) 1px,transparent 1px);
+  background-size:60px 60px;
+}
 
-/* ── HEADER ── */
+.app{position:relative;z-index:1;min-height:100vh;display:flex;flex-direction:column}
+
+/* ══ HEADER ══════════════════════════════════════════════════════════ */
 header{
-  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;
-  padding:13px 24px;background:var(--surf);border-bottom:1px solid var(--border);
-  position:sticky;top:0;z-index:200;
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;
+  padding:12px 24px;
+  background:linear-gradient(90deg,rgba(9,13,23,.98) 0%,rgba(14,20,32,.95) 100%);
+  border-bottom:1px solid var(--border);
+  position:sticky;top:0;z-index:300;
+  box-shadow:0 4px 40px rgba(0,0,0,.5),inset 0 1px 0 rgba(0,212,255,.08);
 }
-.logo{display:flex;align-items:center;gap:10px}
-.logo-mark{
-  width:38px;height:38px;border-radius:9px;display:flex;align-items:center;justify-content:center;
-  background:linear-gradient(135deg,#f97316,#dc2626);font-family:var(--head);
-  font-size:20px;font-weight:700;color:#fff;box-shadow:0 0 18px rgba(249,115,22,.3);flex-shrink:0;
+.logo{display:flex;align-items:center;gap:12px}
+.logo-hex{
+  width:42px;height:42px;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(135deg,#ff6b1a,#cc3300);border-radius:8px;
+  font-family:var(--head);font-weight:900;font-size:18px;color:#fff;
+  box-shadow:0 0 24px rgba(255,107,26,.5),inset 0 1px 0 rgba(255,200,100,.2);
+  flex-shrink:0;animation:logoGlow 3s ease infinite alternate;
 }
-.logo-name{font-family:var(--head);font-size:19px;font-weight:700;letter-spacing:.07em}
-.logo-sub{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.18em;text-transform:uppercase;margin-top:1px}
-.hdr-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.badge{display:flex;align-items:center;gap:5px;padding:4px 11px;border-radius:20px;font-family:var(--mono);font-size:10px}
-.live{background:rgba(74,222,128,.07);border:1px solid rgba(74,222,128,.2);color:var(--green)}
-.dot{width:5px;height:5px;border-radius:50%;background:currentColor;animation:blink 1.5s ease infinite}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
-.ts{font-family:var(--mono);font-size:10px;color:var(--muted)}
-.btn{
-  background:rgba(255,255,255,.04);border:1px solid var(--border);color:var(--muted);
-  padding:6px 14px;border-radius:8px;cursor:pointer;font-family:var(--mono);font-size:11px;
-  letter-spacing:.06em;transition:all .18s;
+@keyframes logoGlow{from{box-shadow:0 0 20px rgba(255,107,26,.4)}to{box-shadow:0 0 35px rgba(255,107,26,.7)}}
+.logo-text{font-family:var(--head);font-size:17px;font-weight:700;letter-spacing:.12em;
+           background:linear-gradient(90deg,#fff,#a0c8ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.logo-sub{font-family:var(--mono);font-size:8px;color:var(--muted);letter-spacing:.22em;text-transform:uppercase;margin-top:2px}
+
+.hdr-mid{display:flex;align-items:center;gap:8px}
+.date-inp-wrap{display:flex;align-items:center;gap:6px;background:var(--surf2);
+  border:1px solid var(--border);border-radius:8px;padding:6px 12px}
+.date-inp-wrap label{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.1em}
+.date-inp-wrap input[type=date]{background:transparent;border:none;color:var(--text);
+  font-family:var(--mono);font-size:11px;outline:none;color-scheme:dark}
+.hdr-sep{width:1px;height:20px;background:var(--border);margin:0 4px}
+
+.hdr-right{display:flex;align-items:center;gap:10px}
+.pill{display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:20px;
+  font-family:var(--mono);font-size:9px;letter-spacing:.1em;white-space:nowrap}
+.pill-live{background:rgba(0,255,136,.06);border:1px solid rgba(0,255,136,.2);color:var(--gn)}
+.pill-dot{width:5px;height:5px;border-radius:50%;background:currentColor;animation:blink 1.4s ease infinite}
+@keyframes blink{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(.7)}}
+.ts-txt{font-family:var(--mono);font-size:9px;color:var(--muted)}
+.hdr-btn{
+  background:transparent;border:1px solid var(--border);color:var(--muted);
+  padding:6px 14px;border-radius:7px;cursor:pointer;font-family:var(--mono);font-size:10px;
+  letter-spacing:.08em;transition:all .2s;display:flex;align-items:center;gap:6px;
 }
-.btn:hover{background:rgba(249,115,22,.1);border-color:var(--orange);color:var(--orange)}
+.hdr-btn:hover{background:rgba(255,107,26,.1);border-color:var(--or);color:var(--or);box-shadow:var(--glow-or)}
+.hdr-btn.active{background:rgba(255,107,26,.15);border-color:var(--or);color:var(--or)}
 
-/* date filter */
-.date-filter{display:flex;align-items:center;gap:6px}
-.date-filter input{
-  background:var(--surf2);border:1px solid var(--border);color:var(--text);border-radius:7px;
-  padding:5px 10px;font-family:var(--mono);font-size:11px;outline:none;
-  color-scheme:dark;
+/* ══ NAV TABS ══════════════════════════════════════════════════════ */
+.nav-bar{
+  display:flex;align-items:center;gap:2px;padding:0 24px;
+  background:var(--surf);border-bottom:1px solid var(--border);
+  overflow-x:auto;flex-shrink:0;
 }
-.date-filter input:focus{border-color:var(--orange)}
-.date-filter label{font-family:var(--mono);font-size:10px;color:var(--muted)}
+.nav-bar::-webkit-scrollbar{height:0}
+.nav-tab{
+  display:flex;align-items:center;gap:6px;padding:12px 18px;
+  font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--muted);
+  cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap;
+}
+.nav-tab:hover{color:var(--text);background:rgba(255,255,255,.02)}
+.nav-tab.active{color:var(--or);border-bottom-color:var(--or)}
+.nav-tab .tab-icon{font-size:13px}
 
-/* ── MAIN ── */
-main{padding:20px 24px;display:flex;flex-direction:column;gap:20px}
+/* ══ MAIN ══════════════════════════════════════════════════════════ */
+main{flex:1;padding:20px 24px;display:flex;flex-direction:column;gap:18px}
+.panel{display:none}
+.panel.active{display:flex;flex-direction:column;gap:18px}
 
-/* section headers */
-.sec-hdr{display:flex;align-items:center;gap:8px;margin-bottom:12px}
-.sec-hdr span{font-family:var(--mono);font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
-.sec-hdr::after{content:'';flex:1;height:1px;background:var(--border)}
+/* ══ SECTION HEADER ════════════════════════════════════════════════ */
+.sec-hdr{display:flex;align-items:center;gap:10px;margin-bottom:0}
+.sec-hdr-text{font-family:var(--mono);font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted)}
+.sec-hdr::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--border),transparent)}
+.sec-hdr-badge{font-family:var(--mono);font-size:8px;padding:2px 8px;border-radius:10px;
+  background:rgba(0,212,255,.07);border:1px solid rgba(0,212,255,.15);color:var(--bl);white-space:nowrap}
 
-/* ── KPI STRIP ── */
-.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:14px}
+/* ══ KPI STRIP ═════════════════════════════════════════════════════ */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
 .kpi{
-  background:var(--surf);border:1px solid var(--border);border-radius:var(--r);
-  padding:16px 18px;position:relative;overflow:hidden;transition:border-color .2s,transform .2s;
+  background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);
+  padding:16px 18px;position:relative;overflow:hidden;cursor:default;
+  transition:transform .2s,border-color .2s,box-shadow .2s;
 }
-.kpi:hover{border-color:var(--kc);transform:translateY(-1px)}
-.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--kc)}
-.kpi-lbl{font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase;margin-bottom:7px}
-.kpi-val{font-family:var(--head);font-size:34px;font-weight:700;line-height:1;color:var(--kc)}
-.kpi-unit{font-size:13px;font-weight:500;margin-left:1px;color:var(--muted)}
-.kpi-ico{position:absolute;right:14px;top:14px;font-size:26px;opacity:.12}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--kc,var(--or))}
+.kpi::after{content:'';position:absolute;inset:0;background:radial-gradient(circle at 100% 0%,rgba(255,255,255,.02),transparent 60%)}
+.kpi:hover{transform:translateY(-2px);border-color:var(--kc,var(--or));box-shadow:0 8px 32px rgba(0,0,0,.4),0 0 0 1px var(--kc,var(--or)) inset}
+.kpi-lbl{font-family:var(--mono);font-size:8px;letter-spacing:.18em;color:var(--muted);text-transform:uppercase;margin-bottom:8px}
+.kpi-val{font-family:var(--head);font-size:32px;font-weight:700;line-height:1;color:var(--kc,var(--text));
+  animation:countUp .8s ease}
+@keyframes countUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.kpi-unit{font-size:12px;font-weight:400;color:var(--muted);margin-left:2px}
+.kpi-icon{position:absolute;right:14px;top:14px;font-size:22px;opacity:.1}
+.kpi-trend{font-family:var(--mono);font-size:9px;margin-top:6px;display:flex;align-items:center;gap:4px}
+.up{color:var(--rd)}.dn{color:var(--gn)}
 
-/* ── CHART CARDS ── */
-.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px}
-.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+/* ══ CARD ══════════════════════════════════════════════════════════ */
 .card{
-  background:var(--surf);border:1px solid var(--border);border-radius:var(--r);
-  padding:18px;display:flex;flex-direction:column;gap:14px;transition:border-color .2s;
+  background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);
+  padding:18px;display:flex;flex-direction:column;gap:14px;
+  transition:border-color .2s;position:relative;overflow:hidden;
 }
-.card:hover{border-color:rgba(249,115,22,.2)}
-.card.wide{grid-column:1/-1}
-.card-hdr{display:flex;align-items:flex-start;justify-content:space-between}
-.card-title{font-family:var(--head);font-size:14px;font-weight:600;letter-spacing:.04em}
-.card-sub{font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:2px;letter-spacing:.05em}
-.tag{
-  font-family:var(--mono);font-size:9px;padding:2px 8px;border-radius:20px;
-  background:rgba(249,115,22,.07);border:1px solid rgba(249,115,22,.18);color:var(--orange);
-  white-space:nowrap;
-}
+.card::after{content:'';position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse at 100% 0%,rgba(255,107,26,.03),transparent 60%)}
+.card:hover{border-color:rgba(0,212,255,.2)}
+.card.span2{grid-column:1/-1}
+.card-hdr{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.card-title{font-family:var(--head);font-size:12px;font-weight:600;letter-spacing:.06em;color:var(--text)}
+.card-sub{font-family:var(--mono);font-size:8px;color:var(--muted);margin-top:3px;letter-spacing:.06em}
+.card-tag{font-family:var(--mono);font-size:8px;padding:2px 8px;border-radius:10px;
+  background:rgba(255,107,26,.07);border:1px solid rgba(255,107,26,.2);color:var(--or);white-space:nowrap}
 .cw{position:relative;width:100%}
 .cw canvas{width:100%!important}
 
-/* ── TABLE ── */
-.tbl-card{background:var(--surf);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+/* ══ GRIDS ══════════════════════════════════════════════════════════ */
+.g2{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px}
+.g3{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.g4{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+
+/* ══ TREND CONTROLS ════════════════════════════════════════════════ */
+.trend-controls{display:flex;gap:6px;flex-wrap:wrap}
+.tctl{background:var(--surf3);border:1px solid var(--border);color:var(--muted);
+  padding:4px 12px;border-radius:6px;cursor:pointer;font-family:var(--mono);font-size:9px;
+  letter-spacing:.08em;transition:all .15s}
+.tctl:hover{border-color:var(--or);color:var(--or)}
+.tctl.active{background:rgba(255,107,26,.12);border-color:var(--or);color:var(--or)}
+
+/* ══ AI SUGGESTIONS ════════════════════════════════════════════════ */
+.ai-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+.ai-card{
+  background:var(--surf2);border-radius:var(--r);padding:16px;
+  display:flex;gap:12px;align-items:flex-start;
+  border:1px solid var(--border);transition:all .2s;position:relative;overflow:hidden;
+}
+.ai-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--ai-c,var(--or))}
+.ai-card:hover{border-color:var(--ai-c,var(--or));transform:translateY(-1px);box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.ai-icon{font-size:24px;flex-shrink:0;line-height:1;margin-top:2px}
+.ai-title{font-family:var(--head);font-size:11px;font-weight:600;color:var(--text);margin-bottom:5px}
+.ai-body{font-size:12px;color:var(--muted);line-height:1.6}
+.ai-metric{display:inline-block;margin-top:8px;font-family:var(--mono);font-size:9px;
+  padding:2px 8px;border-radius:4px;background:rgba(255,255,255,.04);border:1px solid var(--border);color:var(--text)}
+.ai-hdr{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+.ai-hdr-icon{font-size:18px}
+.ai-hdr-title{font-family:var(--head);font-size:13px;font-weight:700;
+  background:linear-gradient(90deg,var(--bl),var(--pu));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.ai-hdr-sub{font-family:var(--mono);font-size:8px;color:var(--muted)}
+.ai-powered{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:8px;
+  color:var(--muted);padding:4px 10px;border-radius:20px;border:1px solid var(--border);background:var(--surf3)}
+.ai-dot{width:5px;height:5px;border-radius:50%;background:var(--pu);animation:blink 2s ease infinite}
+
+/* ══ LEADERBOARD ════════════════════════════════════════════════════ */
+.lb-table{width:100%;border-collapse:collapse}
+.lb-table th{font-family:var(--mono);font-size:8px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--muted);padding:8px 10px;text-align:left;border-bottom:1px solid var(--border)}
+.lb-table td{padding:9px 10px;border-bottom:1px solid rgba(255,255,255,.02);font-size:12px;transition:background .15s}
+.lb-table tr:hover td{background:rgba(255,255,255,.015)}
+.lb-rank{font-family:var(--head);font-size:13px;font-weight:700;width:32px;text-align:center}
+.rank-1{color:var(--yw)}.rank-2{color:#c0c0c0}.rank-3{color:#cd7f32}
+.lb-name{font-weight:600;color:var(--text)}
+.lb-bar{width:80px;height:6px;background:var(--surf3);border-radius:3px;overflow:hidden;display:inline-block;vertical-align:middle;margin-left:8px}
+.lb-bar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--or),var(--or2));transition:width .6s ease}
+.lb-score{font-family:var(--mono);font-size:10px;font-weight:600}
+.lb-badge{display:inline-flex;align-items:center;gap:3px;padding:2px 6px;border-radius:4px;
+  font-family:var(--mono);font-size:8px;font-weight:600}
+.badge-hi{background:rgba(255,51,102,.1);color:var(--rd);border:1px solid rgba(255,51,102,.2)}
+.badge-ok{background:rgba(0,255,136,.08);color:var(--gn);border:1px solid rgba(0,255,136,.18)}
+
+/* ══ DRILL-DOWN ════════════════════════════════════════════════════ */
+.section-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.sec-tab{
+  background:var(--surf3);border:1px solid var(--border);color:var(--muted);
+  padding:5px 14px;border-radius:6px;cursor:pointer;font-family:var(--mono);font-size:9px;
+  letter-spacing:.06em;transition:all .15s;
+}
+.sec-tab:hover{border-color:var(--bl);color:var(--bl)}
+.sec-tab.active{background:rgba(0,212,255,.1);border-color:var(--bl);color:var(--bl)}
+.drilldown-content{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.drill-mini{background:var(--surf3);border:1px solid var(--border);border-radius:8px;padding:14px}
+.drill-mini-title{font-family:var(--mono);font-size:8px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--muted);margin-bottom:10px}
+.drill-row{display:flex;align-items:center;justify-content:space-between;padding:4px 0;
+  border-bottom:1px solid rgba(255,255,255,.02);font-size:11px}
+.drill-row:last-child{border:none}
+.drill-row-name{color:var(--text);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.drill-row-val{font-family:var(--mono);font-size:10px;color:var(--or);font-weight:600}
+.drill-stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.drill-stat{background:var(--surf2);border:1px solid var(--border);border-radius:6px;padding:10px;text-align:center}
+.drill-stat-val{font-family:var(--head);font-size:20px;font-weight:700;color:var(--bl)}
+.drill-stat-lbl{font-family:var(--mono);font-size:8px;color:var(--muted);margin-top:3px;letter-spacing:.08em}
+
+/* ══ TABLE ══════════════════════════════════════════════════════════ */
+.tbl-card{background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
 .tbl-top{
   display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;
   padding:14px 18px;border-bottom:1px solid var(--border);
+  background:linear-gradient(90deg,var(--surf3),var(--surf2));
 }
-.tbl-title{font-family:var(--head);font-size:15px;font-weight:600;letter-spacing:.04em}
-.tbl-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.srch{
-  background:var(--surf2);border:1px solid var(--border);border-radius:7px;
-  padding:6px 12px;color:var(--text);font-family:var(--mono);font-size:11px;
-  outline:none;width:200px;transition:border-color .2s;
+.tbl-title{font-family:var(--head);font-size:13px;font-weight:600;letter-spacing:.06em}
+.tbl-controls{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.inp{
+  background:var(--surf3);border:1px solid var(--border);border-radius:6px;
+  padding:6px 10px;color:var(--text);font-family:var(--mono);font-size:10px;
+  outline:none;transition:border-color .2s;
 }
-.srch:focus{border-color:var(--orange)}
-select.srch{cursor:pointer}
-.tbl-wrap{overflow:auto;max-height:400px}
-table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px}
+.inp:focus{border-color:var(--bl);box-shadow:0 0 0 2px rgba(0,212,255,.08)}
+select.inp{cursor:pointer}
+.tbl-wrap{overflow:auto;max-height:420px}
+.tbl-wrap::-webkit-scrollbar{width:4px;height:4px}
+.tbl-wrap::-webkit-scrollbar-track{background:transparent}
+.tbl-wrap::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+table{width:100%;border-collapse:collapse}
 thead th{
-  background:var(--surf2);color:var(--muted);padding:9px 12px;text-align:left;
-  font-size:9px;letter-spacing:.1em;text-transform:uppercase;position:sticky;top:0;
-  white-space:nowrap;border-bottom:1px solid var(--border);
+  background:var(--surf3);color:var(--muted);padding:8px 10px;text-align:left;
+  font-family:var(--mono);font-size:8px;letter-spacing:.1em;text-transform:uppercase;
+  position:sticky;top:0;white-space:nowrap;border-bottom:1px solid var(--border);
+  cursor:pointer;user-select:none;transition:color .15s;
 }
+thead th:hover{color:var(--or)}
+thead th.sort-asc::after{content:' ▲'}
+thead th.sort-desc::after{content:' ▼'}
 tbody tr{border-bottom:1px solid rgba(255,255,255,.02);transition:background .12s}
-tbody tr:hover{background:rgba(255,255,255,.02)}
-tbody td{padding:8px 12px;white-space:nowrap;max-width:260px;overflow:hidden;text-overflow:ellipsis}
-.yes{display:inline-block;padding:2px 7px;border-radius:4px;font-size:9px;font-weight:600;letter-spacing:.07em;
-     background:rgba(248,113,113,.1);color:var(--red);border:1px solid rgba(248,113,113,.2)}
-.no {display:inline-block;padding:2px 7px;border-radius:4px;font-size:9px;font-weight:600;letter-spacing:.07em;
-     background:rgba(74,222,128,.08);color:var(--green);border:1px solid rgba(74,222,128,.18)}
+tbody tr:hover{background:rgba(0,212,255,.03)}
+tbody td{padding:7px 10px;font-family:var(--mono);font-size:10px;white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis}
+.badge-yes{display:inline-block;padding:2px 7px;border-radius:4px;font-size:8px;font-weight:700;letter-spacing:.08em;
+  background:rgba(255,51,102,.1);color:var(--rd);border:1px solid rgba(255,51,102,.2)}
+.badge-no{display:inline-block;padding:2px 7px;border-radius:4px;font-size:8px;font-weight:700;letter-spacing:.08em;
+  background:rgba(0,255,136,.07);color:var(--gn);border:1px solid rgba(0,255,136,.15)}
+.tbl-count{font-family:var(--mono);font-size:9px;color:var(--muted)}
 
-/* ── LOADING / ERROR ── */
+/* ══ HOUR HEATMAP ══════════════════════════════════════════════════ */
+.heatmap{display:grid;grid-template-columns:repeat(24,1fr);gap:3px;padding:4px 0}
+.hm-cell{height:32px;border-radius:4px;background:var(--surf3);position:relative;
+  transition:transform .1s;cursor:default}
+.hm-cell:hover{transform:scaleY(1.15);z-index:2}
+.hm-label-row{display:grid;grid-template-columns:repeat(24,1fr);gap:3px;margin-top:4px}
+.hm-label{font-family:var(--mono);font-size:7px;color:var(--muted);text-align:center}
+.hm-tooltip{position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);
+  background:var(--surf);border:1px solid var(--border);border-radius:4px;padding:3px 7px;
+  font-family:var(--mono);font-size:9px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .15s;z-index:10}
+.hm-cell:hover .hm-tooltip{opacity:1}
+
+/* ══ LOADING ═══════════════════════════════════════════════════════ */
 #overlay{
   position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;
-  align-items:center;justify-content:center;gap:14px;z-index:999;
+  align-items:center;justify-content:center;gap:16px;z-index:9999;
 }
-.spin{width:42px;height:42px;border:3px solid var(--border);border-top-color:var(--orange);
-      border-radius:50%;animation:spin .7s linear infinite}
+.load-ring{width:56px;height:56px;border-radius:50%;
+  border:2px solid var(--border);border-top:2px solid var(--or);border-right:2px solid var(--bl);
+  animation:spin .9s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-.ovl-txt{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.12em}
-.err{background:rgba(248,113,113,.06);border:1px solid rgba(248,113,113,.2);border-radius:12px;
-     padding:20px 28px;max-width:460px;text-align:center}
-.err-t{font-family:var(--head);font-size:17px;color:var(--red);margin-bottom:8px}
-.err-m{font-family:var(--mono);font-size:11px;color:var(--muted);line-height:1.7}
+.load-txt{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:.15em;animation:fadeInOut 2s ease infinite}
+@keyframes fadeInOut{0%,100%{opacity:.4}50%{opacity:1}}
+.load-bar-wrap{width:200px;height:2px;background:var(--border);border-radius:1px;overflow:hidden}
+.load-bar{height:100%;background:linear-gradient(90deg,var(--or),var(--bl));border-radius:1px;
+  animation:loadSlide 1.8s ease infinite}
+@keyframes loadSlide{0%{width:0;margin-left:0}50%{width:60%}100%{width:0;margin-left:100%}}
 
-/* scrollbar */
+.err-box{background:rgba(255,51,102,.05);border:1px solid rgba(255,51,102,.2);
+  border-radius:12px;padding:24px;max-width:480px;text-align:center}
+.err-title{font-family:var(--head);font-size:16px;color:var(--rd);margin-bottom:8px}
+.err-msg{font-family:var(--mono);font-size:10px;color:var(--muted);line-height:1.8}
+
+/* ══ SCROLLBAR ══════════════════════════════════════════════════════ */
 ::-webkit-scrollbar{width:4px;height:4px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
 
+/* ══ MISC ═══════════════════════════════════════════════════════════ */
+.empty{font-family:var(--mono);font-size:10px;color:var(--muted);text-align:center;padding:20px}
+.fl{display:flex;align-items:center;gap:8px}
+.spacer{flex:1}
+
 @media(max-width:700px){
-  main{padding:14px}header{padding:10px 14px}
-  .logo-name{font-size:15px}.date-filter{display:none}
+  main{padding:12px}header{padding:10px 12px}.nav-tab{padding:10px 12px}
+  .logo-text{font-size:13px}.hdr-mid{display:none}
 }
 </style>
 </head>
 <body>
 
+<!-- LOADING -->
 <div id="overlay">
-  <div class="spin"></div>
-  <div class="ovl-txt">LOADING FROM GOOGLE SHEETS…</div>
+  <div class="load-ring"></div>
+  <div class="load-txt">INITIALIZING RTMS…</div>
+  <div class="load-bar-wrap"><div class="load-bar"></div></div>
 </div>
 
-<div id="app" style="display:none">
+<div class="app" id="appRoot" style="display:none">
 
-<!-- ── HEADER ── -->
+<!-- ══ HEADER ══════════════════════════════════════════════════════ -->
 <header>
   <div class="logo">
-    <div class="logo-mark">B</div>
+    <div class="logo-hex">B</div>
     <div>
-      <div class="logo-name">BREAKDOWN ANALYTICS</div>
+      <div class="logo-text">BREAKDOWN ANALYTICS</div>
       <div class="logo-sub">Real-Time Monitoring System · RTMS</div>
     </div>
   </div>
-  <div class="hdr-right">
-    <div class="date-filter">
+  <div class="hdr-mid">
+    <div class="date-inp-wrap">
       <label>FROM</label>
-      <input type="date" id="dtFrom" onchange="applyFilter()"/>
+      <input type="date" id="dtFrom" onchange="loadData()"/>
+      <div class="hdr-sep"></div>
       <label>TO</label>
-      <input type="date" id="dtTo" onchange="applyFilter()"/>
+      <input type="date" id="dtTo" onchange="loadData()"/>
     </div>
-    <div class="badge live"><div class="dot"></div>LIVE</div>
-    <span class="ts" id="ts">—</span>
-    <button class="btn" onclick="loadData()">⟳ REFRESH</button>
+  </div>
+  <div class="hdr-right">
+    <div class="ai-powered"><div class="ai-dot"></div>AI ACTIVE</div>
+    <div class="pill pill-live"><div class="pill-dot"></div>LIVE</div>
+    <span class="ts-txt" id="ts">—</span>
+    <button class="hdr-btn" onclick="loadData()">⟳ REFRESH</button>
   </div>
 </header>
 
+<!-- ══ NAV TABS ════════════════════════════════════════════════════ -->
+<nav class="nav-bar">
+  <div class="nav-tab active" data-panel="overview" onclick="switchTab(this)"><span class="tab-icon">📊</span>OVERVIEW</div>
+  <div class="nav-tab" data-panel="sections"  onclick="switchTab(this)"><span class="tab-icon">🏭</span>SECTION DRILL-DOWN</div>
+  <div class="nav-tab" data-panel="leaderboard" onclick="switchTab(this)"><span class="tab-icon">🏆</span>TECHNICIAN LEADERBOARD</div>
+  <div class="nav-tab" data-panel="ai"         onclick="switchTab(this)"><span class="tab-icon">🤖</span>AI INSIGHTS</div>
+  <div class="nav-tab" data-panel="heatmap"    onclick="switchTab(this)"><span class="tab-icon">🕐</span>TIME HEATMAP</div>
+  <div class="nav-tab" data-panel="log"        onclick="switchTab(this)"><span class="tab-icon">📋</span>BREAKDOWN LOG</div>
+</nav>
+
 <main>
 
-<!-- KPIs -->
-<div>
-  <div class="sec-hdr"><span>Key Performance Indicators</span></div>
-  <div class="kpi-grid">
-    <div class="kpi" style="--kc:#f97316">
-      <div class="kpi-lbl">Total Breakdowns</div>
-      <div class="kpi-val" id="k0">—</div>
-      <div class="kpi-ico">⚡</div>
+<!-- ══════════════ OVERVIEW ══════════════════════════════════════════ -->
+<div class="panel active" id="panel-overview">
+
+  <div>
+    <div class="sec-hdr"><span class="sec-hdr-text">Key Performance Indicators</span><span class="sec-hdr-badge" id="kpiRange">—</span></div>
+    <div class="kpi-grid" style="margin-top:12px">
+      <div class="kpi" style="--kc:#ff6b1a"><div class="kpi-lbl">Total Breakdowns</div>
+        <div class="kpi-val" id="k0">—</div><div class="kpi-icon">⚡</div></div>
+      <div class="kpi" style="--kc:#ff3366"><div class="kpi-lbl">Total Downtime</div>
+        <div class="kpi-val" id="k1">—<span class="kpi-unit">hrs</span></div><div class="kpi-icon">⏱</div></div>
+      <div class="kpi" style="--kc:#00d4ff"><div class="kpi-lbl">Avg Duration</div>
+        <div class="kpi-val" id="k2">—<span class="kpi-unit">min</span></div><div class="kpi-icon">📈</div></div>
+      <div class="kpi" style="--kc:#ff3366"><div class="kpi-lbl">Production Loss</div>
+        <div class="kpi-val" id="k3">—<span class="kpi-unit">%</span></div><div class="kpi-icon">🔴</div></div>
+      <div class="kpi" style="--kc:#ffcc00"><div class="kpi-lbl">Loss Incidents</div>
+        <div class="kpi-val" id="k4">—</div><div class="kpi-icon">⚠️</div></div>
     </div>
-    <div class="kpi" style="--kc:#f87171">
-      <div class="kpi-lbl">Total Downtime</div>
-      <div class="kpi-val" id="k1">—<span class="kpi-unit">hrs</span></div>
-      <div class="kpi-ico">⏱</div>
+  </div>
+
+  <!-- TREND -->
+  <div>
+    <div class="sec-hdr"><span class="sec-hdr-text">Breakdown Trend</span></div>
+    <div class="card" style="margin-top:12px">
+      <div class="card-hdr">
+        <div><div class="card-title">Incidents Over Time</div><div class="card-sub">Sortable by day / week / month</div></div>
+        <div class="trend-controls">
+          <div class="tctl active" onclick="setTrend('daily',this)">DAILY</div>
+          <div class="tctl" onclick="setTrend('weekly',this)">WEEKLY</div>
+          <div class="tctl" onclick="setTrend('monthly',this)">MONTHLY</div>
+        </div>
+      </div>
+      <div class="cw" style="height:200px"><canvas id="cTrend"></canvas></div>
     </div>
-    <div class="kpi" style="--kc:#38bdf8">
-      <div class="kpi-lbl">Avg Duration</div>
-      <div class="kpi-val" id="k2">—<span class="kpi-unit">min</span></div>
-      <div class="kpi-ico">📊</div>
+  </div>
+
+  <!-- SECTION + LOSS -->
+  <div>
+    <div class="sec-hdr"><span class="sec-hdr-text">Section & Loss Analysis</span></div>
+    <div class="g2" style="margin-top:12px">
+      <div class="card">
+        <div class="card-hdr"><div><div class="card-title">Breakdowns by Section</div><div class="card-sub">Click bar to drill down</div></div></div>
+        <div class="cw" style="height:220px"><canvas id="cSec" onclick="handleSecClick(event)"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-hdr"><div><div class="card-title">Downtime by Section (hrs)</div><div class="card-sub">Total hours lost</div></div></div>
+        <div class="cw" style="height:220px"><canvas id="cSecDur"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-hdr"><div><div class="card-title">Production Loss Split</div><div class="card-sub">With vs without production loss</div></div></div>
+        <div class="cw" style="height:220px"><canvas id="cLoss"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-hdr"><div><div class="card-title">Top Machines</div><div class="card-sub">Highest incident machines</div></div></div>
+        <div class="cw" style="height:220px"><canvas id="cMach"></canvas></div>
+      </div>
     </div>
-    <div class="kpi" style="--kc:#f87171">
-      <div class="kpi-lbl">Production Loss</div>
-      <div class="kpi-val" id="k3">—<span class="kpi-unit">%</span></div>
-      <div class="kpi-ico">🔴</div>
-    </div>
-    <div class="kpi" style="--kc:#fbbf24">
-      <div class="kpi-lbl">Loss Incidents</div>
-      <div class="kpi-val" id="k4">—</div>
-      <div class="kpi-ico">⚠️</div>
+  </div>
+
+  <!-- TYPE + ATTENDANT -->
+  <div>
+    <div class="sec-hdr"><span class="sec-hdr-text">Failure Type & Technician</span></div>
+    <div class="g2" style="margin-top:12px">
+      <div class="card">
+        <div class="card-hdr"><div><div class="card-title">Breakdown Types</div><div class="card-sub">Leading failure categories</div></div></div>
+        <div class="cw" style="height:250px"><canvas id="cType"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-hdr"><div><div class="card-title">Technician Workload</div><div class="card-sub">Incidents handled per attendant</div></div></div>
+        <div class="cw" style="height:250px"><canvas id="cAttn"></canvas></div>
+      </div>
     </div>
   </div>
 </div>
 
-<!-- TREND -->
-<div>
-  <div class="sec-hdr"><span>Daily Breakdown Trend</span></div>
-  <div class="card wide">
+<!-- ══════════════ SECTION DRILL-DOWN ══════════════════════════════ -->
+<div class="panel" id="panel-sections">
+  <div class="sec-hdr"><span class="sec-hdr-text">Section Deep Dive</span><span class="sec-hdr-badge">SELECT A SECTION BELOW</span></div>
+  <div class="section-tabs" id="sectionTabs"></div>
+  <div id="drilldownContent"></div>
+</div>
+
+<!-- ══════════════ LEADERBOARD ══════════════════════════════════════ -->
+<div class="panel" id="panel-leaderboard">
+  <div class="sec-hdr"><span class="sec-hdr-text">Technician Performance Leaderboard</span></div>
+  <div class="g2" style="margin-top:12px">
+    <div class="card span2">
+      <div class="card-hdr">
+        <div>
+          <div class="card-title">🏆 Top Technicians Ranking</div>
+          <div class="card-sub">Ranked by incidents handled · Score = incidents × 10 − avg_duration × 0.5</div>
+        </div>
+        <div class="trend-controls">
+          <div class="tctl active" onclick="sortLB('incidents',this)">BY INCIDENTS</div>
+          <div class="tctl" onclick="sortLB('avg_duration',this)">BY SPEED</div>
+          <div class="tctl" onclick="sortLB('loss_rate',this)">BY LOSS RATE</div>
+        </div>
+      </div>
+      <div style="overflow-x:auto"><table class="lb-table" id="lbTable"></table></div>
+    </div>
+    <div class="card">
+      <div class="card-hdr"><div><div class="card-title">Incidents per Technician</div></div></div>
+      <div class="cw" style="height:260px"><canvas id="cLbBar"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-hdr"><div><div class="card-title">Avg Response Duration (min)</div></div></div>
+      <div class="cw" style="height:260px"><canvas id="cLbDur"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ AI INSIGHTS ══════════════════════════════════════ -->
+<div class="panel" id="panel-ai">
+  <div class="sec-hdr"><span class="sec-hdr-text">AI-Powered Insights & Recommendations</span></div>
+  <div style="margin-top:12px">
+    <div class="fl" style="margin-bottom:16px;gap:12px;flex-wrap:wrap">
+      <div>
+        <div class="ai-hdr-title" style="font-family:var(--head);font-size:16px;font-weight:700;
+          background:linear-gradient(90deg,#00d4ff,#b060ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent">
+          🤖 Intelligent Analysis Engine
+        </div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:3px;letter-spacing:.08em">
+          Pattern detection · Anomaly alerts · Actionable recommendations
+        </div>
+      </div>
+      <div class="spacer"></div>
+      <div class="ai-powered" style="padding:6px 14px"><div class="ai-dot"></div>REAL-TIME ANALYSIS ACTIVE</div>
+    </div>
+    <div class="ai-grid" id="aiGrid"></div>
+  </div>
+</div>
+
+<!-- ══════════════ TIME HEATMAP ═════════════════════════════════════ -->
+<div class="panel" id="panel-heatmap">
+  <div class="sec-hdr"><span class="sec-hdr-text">Hourly Breakdown Heatmap</span></div>
+  <div class="card" style="margin-top:12px">
     <div class="card-hdr">
-      <div><div class="card-title">Breakdowns per Day</div><div class="card-sub">Date-wise incident count</div></div>
-      <div class="tag">TIME SERIES</div>
+      <div><div class="card-title">Incidents by Hour of Day</div><div class="card-sub">Identify peak breakdown times for smarter shift planning</div></div>
+      <div class="card-tag">24HR VIEW</div>
     </div>
-    <div class="cw" style="height:190px"><canvas id="cTrend"></canvas></div>
+    <div id="heatmapWrap"></div>
+    <div class="cw" style="height:200px;margin-top:16px"><canvas id="cHour"></canvas></div>
   </div>
-</div>
-
-<!-- SECTION + PRODUCTION LOSS -->
-<div>
-  <div class="sec-hdr"><span>Section Analysis</span></div>
-  <div class="grid2">
+  <div class="g3">
     <div class="card">
-      <div class="card-hdr">
-        <div><div class="card-title">Breakdowns by Section</div><div class="card-sub">Incident count per section</div></div>
-      </div>
-      <div class="cw" style="height:230px"><canvas id="cSec"></canvas></div>
+      <div class="card-hdr"><div><div class="card-title">Shift Analysis</div><div class="card-sub">Morning · Afternoon · Night</div></div></div>
+      <div class="cw" style="height:200px"><canvas id="cShift"></canvas></div>
     </div>
     <div class="card">
-      <div class="card-hdr">
-        <div><div class="card-title">Downtime by Section (hrs)</div><div class="card-sub">Total hours lost per section</div></div>
-      </div>
-      <div class="cw" style="height:230px"><canvas id="cSecDur"></canvas></div>
+      <div class="card-hdr"><div><div class="card-title">Day of Week Pattern</div><div class="card-sub">Which days are riskiest</div></div></div>
+      <div class="cw" style="height:200px"><canvas id="cDow"></canvas></div>
     </div>
     <div class="card">
-      <div class="card-hdr">
-        <div><div class="card-title">Production Loss Split</div><div class="card-sub">With loss vs without</div></div>
-      </div>
-      <div class="cw" style="height:230px"><canvas id="cLoss"></canvas></div>
-    </div>
-    <div class="card">
-      <div class="card-hdr">
-        <div><div class="card-title">Top Machines</div><div class="card-sub">Machines with most incidents</div></div>
-      </div>
-      <div class="cw" style="height:230px"><canvas id="cMach"></canvas></div>
+      <div class="card-hdr"><div><div class="card-title">Type × Loss Correlation</div><div class="card-sub">Which types cause most loss</div></div></div>
+      <div class="cw" style="height:200px"><canvas id="cTypeLoss"></canvas></div>
     </div>
   </div>
 </div>
 
-<!-- BREAKDOWN TYPE + ATTENDANT -->
-<div>
-  <div class="sec-hdr"><span>Failure Type & Technician</span></div>
-  <div class="grid2">
-    <div class="card">
-      <div class="card-hdr">
-        <div><div class="card-title">Breakdown Type</div><div class="card-sub">Top failure categories</div></div>
-      </div>
-      <div class="cw" style="height:260px"><canvas id="cType"></canvas></div>
-    </div>
-    <div class="card">
-      <div class="card-hdr">
-        <div><div class="card-title">Attendant Workload</div><div class="card-sub">Incidents handled per technician</div></div>
-      </div>
-      <div class="cw" style="height:260px"><canvas id="cAttn"></canvas></div>
-    </div>
-  </div>
-</div>
-
-<!-- TABLE -->
-<div>
-  <div class="sec-hdr"><span>Breakdown Log</span></div>
-  <div class="tbl-card">
+<!-- ══════════════ LOG ════════════════════════════════════════════════ -->
+<div class="panel" id="panel-log">
+  <div class="sec-hdr"><span class="sec-hdr-text">Full Breakdown Log</span></div>
+  <div class="tbl-card" style="margin-top:12px">
     <div class="tbl-top">
-      <div class="tbl-title">Incident Records <span id="tblCount" style="font-family:var(--mono);font-size:11px;color:var(--muted)"></span></div>
+      <div class="fl">
+        <div class="tbl-title">Incident Records</div>
+        <span class="tbl-count" id="tblCount"></span>
+      </div>
       <div class="tbl-controls">
-        <select class="srch" id="filterSec" onchange="renderTable()"><option value="">All Sections</option></select>
-        <select class="srch" id="filterLoss" onchange="renderTable()">
-          <option value="">All</option><option value="YES">With Loss</option><option value="No">No Loss</option>
+        <select class="inp" id="fSec"  onchange="renderTable()"><option value="">All Sections</option></select>
+        <select class="inp" id="fLoss" onchange="renderTable()">
+          <option value="">All</option><option>YES</option><option>No</option>
         </select>
-        <input class="srch" type="text" id="tblSearch" placeholder="Search…" oninput="renderTable()"/>
+        <select class="inp" id="fType" onchange="renderTable()"><option value="">All Types</option></select>
+        <input  class="inp" type="text" id="tblQ" placeholder="🔍 Search…" oninput="renderTable()" style="width:170px"/>
+        <button class="hdr-btn" onclick="exportCSV()">⬇ EXPORT CSV</button>
       </div>
     </div>
-    <div class="tbl-wrap"><table><thead id="tHead"></thead><tbody id="tBody"></tbody></table></div>
+    <div class="tbl-wrap">
+      <table>
+        <thead id="tHead"></thead>
+        <tbody id="tBody"></tbody>
+      </table>
+    </div>
   </div>
 </div>
 
 </main>
-</div><!-- /#app -->
+</div><!-- /#appRoot -->
 
 <script>
-// ─── PALETTE & CHART DEFAULTS ───────────────────────────────────────
-const P = ['#f97316','#38bdf8','#4ade80','#f87171','#c084fc','#fbbf24',
-           '#fb923c','#22d3ee','#86efac','#fca5a5','#d8b4fe','#fde68a',
-           '#ea580c','#0ea5e9','#16a34a','#dc2626'];
-
-Chart.defaults.color = '#4b5a72';
-Chart.defaults.font.family = "'DM Sans',sans-serif";
-
+// ═══════════════════════════════════════════════════════════════════
+//  CONSTANTS & STATE
+// ═══════════════════════════════════════════════════════════════════
+const P   = ['#ff6b1a','#00d4ff','#00ff88','#ff3366','#b060ff','#ffcc00',
+             '#ff8c42','#22e8ff','#44ffaa','#ff6688','#c884ff','#ffe044',
+             '#dd4400','#0099cc','#00cc66','#cc0033'];
 const GL  = () => ({color:'rgba(255,255,255,.03)',drawBorder:false});
-const TK  = () => ({color:'#3a4a60',font:{family:"'IBM Plex Mono'",size:9}});
-const LEG = () => ({color:'#7a90ad',font:{family:"'IBM Plex Mono'",size:10},boxWidth:9,padding:8});
+const TK  = (sz=9) => ({color:'#3a5070',font:{family:"'JetBrains Mono'",size:sz}});
+const LEG = () => ({color:'#6080a0',font:{family:"'JetBrains Mono'",size:9},boxWidth:8,padding:7});
 
-let charts = {}, ALL_ROWS = [], SECTIONS = [];
+Chart.defaults.color = '#3a5070';
+Chart.defaults.font.family = "'Exo 2',sans-serif";
 
-function kill(){ Object.values(charts).forEach(c => c.destroy()); charts = {}; }
+let CHARTS = {}, DATA = {}, LB_DATA = [], LB_SORT = 'incidents';
+const COLS = ['Date','Section','Machine','Breakdown Type','Duration (min)','Production Loss','Attendant','Slip No.','Remark'];
+let sortCol = -1, sortDir = 1;
+let trendMode = 'daily';
 
-// ─── CHART BUILDERS ─────────────────────────────────────────────────
-function line(id, labels, data){
-  const ctx = document.getElementById(id).getContext('2d');
-  const g = ctx.createLinearGradient(0,0,0,190);
-  g.addColorStop(0,'rgba(249,115,22,.22)');g.addColorStop(1,'rgba(249,115,22,0)');
+// ═══════════════════════════════════════════════════════════════════
+//  TAB NAVIGATION
+// ═══════════════════════════════════════════════════════════════════
+function switchTab(el){
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('panel-' + el.dataset.panel).classList.add('active');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  CHART HELPERS
+// ═══════════════════════════════════════════════════════════════════
+function killAll(){ Object.values(CHARTS).forEach(c => c.destroy()); CHARTS = {}; }
+
+function mkLine(id, labels, data, color='#ff6b1a'){
+  const ctx = document.getElementById(id)?.getContext('2d');
+  if(!ctx) return;
+  const g = ctx.createLinearGradient(0,0,0,200);
+  g.addColorStop(0, color+'33'); g.addColorStop(1, color+'00');
   return new Chart(ctx,{type:'line',data:{labels,datasets:[{data,fill:true,backgroundColor:g,
-    borderColor:'#f97316',borderWidth:2,pointRadius:3,pointBackgroundColor:'#f97316',tension:.4}]},
+    borderColor:color,borderWidth:2,pointRadius:3,pointBackgroundColor:color,tension:.35}]},
     options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false}},
-      scales:{x:{grid:GL(),ticks:{...TK(),maxTicksLimit:14,maxRotation:30}},
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:v=>' '+v.raw+' incidents'}}},
+      scales:{x:{grid:GL(),ticks:{...TK(),maxTicksLimit:16,maxRotation:30}},
               y:{grid:GL(),ticks:{...TK(),precision:0}}}}});
 }
 
-function hbar(id, labels, data, palette){
-  const ctx = document.getElementById(id).getContext('2d');
-  const colors = labels.map((_,i)=> P[i%P.length]);
+function mkHBar(id, labels, data, title=''){
+  const ctx = document.getElementById(id)?.getContext('2d');
+  if(!ctx) return;
+  const cols = labels.map((_,i) => P[i%P.length]);
   return new Chart(ctx,{type:'bar',data:{labels,datasets:[{data,
-    backgroundColor:colors.map(c=>c+'88'),borderColor:colors,borderWidth:1,borderRadius:4}]},
+    backgroundColor:cols.map(c=>c+'66'),borderColor:cols,borderWidth:1,borderRadius:4,
+    borderSkipped:false}]},
     options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
       plugins:{legend:{display:false}},
-      scales:{x:{grid:GL(),ticks:TK()},y:{grid:GL(),ticks:{...TK(),font:{size:9}}}}}});
+      scales:{x:{grid:GL(),ticks:TK()},y:{grid:GL(),ticks:{...TK(9)}}}}});
 }
 
-function bar(id, labels, data){
-  const ctx = document.getElementById(id).getContext('2d');
-  const colors = labels.map((_,i)=> P[i%P.length]);
+function mkBar(id, labels, data, colors){
+  const ctx = document.getElementById(id)?.getContext('2d');
+  if(!ctx) return;
+  const cc = colors || labels.map((_,i) => P[i%P.length]);
   return new Chart(ctx,{type:'bar',data:{labels,datasets:[{data,
-    backgroundColor:colors.map(c=>c+'88'),borderColor:colors,borderWidth:1,borderRadius:4}]},
+    backgroundColor:cc.map(c=>c+'66'),borderColor:cc,borderWidth:1,borderRadius:4}]},
     options:{responsive:true,maintainAspectRatio:false,
       plugins:{legend:{display:false}},
-      scales:{x:{grid:GL(),ticks:{...TK(),maxRotation:35,font:{size:9}}},y:{grid:GL(),ticks:TK()}}}});
+      scales:{x:{grid:GL(),ticks:{...TK(9),maxRotation:35}},y:{grid:GL(),ticks:TK()}}}});
 }
 
-function donut(id, labels, data){
-  const ctx = document.getElementById(id).getContext('2d');
+function mkDonut(id, labels, data){
+  const ctx = document.getElementById(id)?.getContext('2d');
+  if(!ctx) return;
   return new Chart(ctx,{type:'doughnut',data:{labels,datasets:[{data,
-    backgroundColor:P.slice(0,labels.length),borderWidth:0,hoverOffset:5}]},
-    options:{responsive:true,maintainAspectRatio:false,cutout:'62%',
+    backgroundColor:P.slice(0,labels.length),borderWidth:0,hoverOffset:6}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'60%',
       plugins:{legend:{position:'right',labels:LEG()}}}});
 }
 
-// ─── TABLE ───────────────────────────────────────────────────────────
-const COLS = ['Date','Section','Machine','Breakdown Type','Duration (min)','Production Loss','Attendant','Slip No.'];
+// ═══════════════════════════════════════════════════════════════════
+//  TREND
+// ═══════════════════════════════════════════════════════════════════
+function setTrend(mode, el){
+  trendMode = mode;
+  document.querySelectorAll('.tctl').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  const t = DATA['trend_'+mode] || [];
+  if(CHARTS.trend){ CHARTS.trend.destroy(); delete CHARTS.trend; }
+  CHARTS.trend = mkLine('cTrend', t.map(d=>d.date), t.map(d=>d.count));
+}
 
-function renderTable(){
-  const q    = document.getElementById('tblSearch').value.toLowerCase();
-  const sec  = document.getElementById('filterSec').value;
-  const loss = document.getElementById('filterLoss').value;
+// ═══════════════════════════════════════════════════════════════════
+//  SECTION DRILL-DOWN click from chart
+// ═══════════════════════════════════════════════════════════════════
+function handleSecClick(event){
+  const chart = CHARTS.sec;
+  if(!chart) return;
+  const pts = chart.getElementsAtEventForMode(event,'nearest',{intersect:true},false);
+  if(!pts.length) return;
+  const label = DATA.by_section.labels[pts[0].index];
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  const tab = document.querySelector('[data-panel="sections"]');
+  tab.classList.add('active');
+  document.getElementById('panel-sections').classList.add('active');
+  // activate the section tab
+  const secTab = document.querySelector(`.sec-tab[data-sec="${label}"]`);
+  if(secTab) loadDrilldown(secTab, label);
+}
 
-  let data = ALL_ROWS.filter(r => {
-    if(sec  && r.Section !== sec)                   return false;
-    if(loss && r['Production Loss'].toUpperCase() !== loss.toUpperCase()) return false;
-    if(q){
-      const row = COLS.map(c => String(r[c]||'')).join(' ').toLowerCase();
-      if(!row.includes(q)) return false;
+// ═══════════════════════════════════════════════════════════════════
+//  DRILL-DOWN
+// ═══════════════════════════════════════════════════════════════════
+function buildSectionTabs(drilldown){
+  const wrap = document.getElementById('sectionTabs');
+  wrap.innerHTML = '';
+  const secs = Object.keys(drilldown);
+  secs.forEach((s,i) => {
+    const el = document.createElement('div');
+    el.className = 'sec-tab' + (i===0?' active':'');
+    el.dataset.sec = s;
+    el.textContent = s;
+    el.onclick = () => loadDrilldown(el, s);
+    wrap.appendChild(el);
+  });
+  if(secs.length) loadDrilldown(wrap.firstChild, secs[0]);
+}
+
+let drillCharts = {};
+function loadDrilldown(el, sec){
+  document.querySelectorAll('.sec-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  Object.values(drillCharts).forEach(c => c.destroy());
+  drillCharts = {};
+
+  const d = DATA.drilldown[sec];
+  if(!d){ document.getElementById('drilldownContent').innerHTML='<div class="empty">No data for this section.</div>'; return; }
+
+  document.getElementById('drilldownContent').innerHTML = `
+    <div class="drill-stat-grid">
+      <div class="drill-stat"><div class="drill-stat-val">${d.count}</div><div class="drill-stat-lbl">TOTAL INCIDENTS</div></div>
+      <div class="drill-stat"><div class="drill-stat-val" style="color:var(--rd)">${d.loss}</div><div class="drill-stat-lbl">WITH PROD. LOSS</div></div>
+      <div class="drill-stat"><div class="drill-stat-val" style="color:var(--yw)">${d.dur_hrs}</div><div class="drill-stat-lbl">DOWNTIME HRS</div></div>
+      <div class="drill-stat"><div class="drill-stat-val" style="color:${d.loss_pct>40?'var(--rd)':'var(--gn)'}">${d.loss_pct}%</div><div class="drill-stat-lbl">LOSS RATE</div></div>
+    </div>
+    <div class="g3" style="margin-top:0">
+      <div class="drill-mini">
+        <div class="drill-mini-title">TOP MACHINES</div>
+        ${d.top_machines.map(m=>`<div class="drill-row"><span class="drill-row-name">${m.name}</span><span class="drill-row-val">${m.count}</span></div>`).join('')||'<div class="empty">—</div>'}
+      </div>
+      <div class="drill-mini">
+        <div class="drill-mini-title">TOP FAILURE TYPES</div>
+        ${d.top_types.map(t=>`<div class="drill-row"><span class="drill-row-name">${t.name}</span><span class="drill-row-val">${t.count}</span></div>`).join('')||'<div class="empty">—</div>'}
+      </div>
+      <div class="drill-mini">
+        <div class="drill-mini-title">TOP ATTENDANTS</div>
+        ${d.top_attendants.map(a=>`<div class="drill-row"><span class="drill-row-name">${a.name}</span><span class="drill-row-val">${a.count}</span></div>`).join('')||'<div class="empty">—</div>'}
+      </div>
+    </div>
+    <div class="card" style="margin-top:12px">
+      <div class="card-hdr"><div><div class="card-title">${sec} — Daily Trend</div></div></div>
+      <div class="cw" style="height:160px"><canvas id="cDrill"></canvas></div>
+    </div>`;
+
+  setTimeout(() => {
+    const tl = d.trend.map(x=>x.date), td = d.trend.map(x=>x.count);
+    drillCharts.trend = mkLine('cDrill', tl, td, '#00d4ff');
+  }, 50);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  LEADERBOARD
+// ═══════════════════════════════════════════════════════════════════
+function sortLB(col, el){
+  LB_SORT = col;
+  document.querySelectorAll('#panel-leaderboard .tctl').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  renderLeaderboard(LB_DATA);
+}
+
+function renderLeaderboard(data){
+  if(!data.length) return;
+  let sorted = [...data];
+  if(LB_SORT === 'incidents')    sorted.sort((a,b) => b.incidents - a.incidents);
+  if(LB_SORT === 'avg_duration') sorted.sort((a,b) => a.avg_duration - b.avg_duration);
+  if(LB_SORT === 'loss_rate')    sorted.sort((a,b) => a.loss_rate - b.loss_rate);
+
+  const maxInc = Math.max(...sorted.map(x=>x.incidents));
+  const tbl = document.getElementById('lbTable');
+  tbl.innerHTML = `<thead><tr>
+    <th>#</th><th>TECHNICIAN</th><th>INCIDENTS</th><th>AVG DURATION</th>
+    <th>LOSS INCIDENTS</th><th>LOSS RATE</th><th>SECTIONS</th><th>TYPES HANDLED</th>
+  </tr></thead><tbody>${
+    sorted.slice(0,15).map((row,i) => {
+      const rankC = i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'';
+      const lossC = row.loss_rate > 40 ? 'badge-hi' : 'badge-ok';
+      const barW  = Math.round(row.incidents/maxInc*100);
+      return `<tr>
+        <td><span class="lb-rank ${rankC}">${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</span></td>
+        <td><span class="lb-name">${row.name}</span></td>
+        <td>
+          <span style="font-family:var(--mono);font-size:12px;font-weight:600;color:var(--or)">${row.incidents}</span>
+          <span class="lb-bar"><span class="lb-bar-fill" style="width:${barW}%"></span></span>
+        </td>
+        <td><span style="font-family:var(--mono);color:var(--bl)">${row.avg_duration} min</span></td>
+        <td><span style="font-family:var(--mono);color:var(--rd)">${row.loss_count}</span></td>
+        <td><span class="lb-badge ${lossC}">${row.loss_rate}%</span></td>
+        <td><span style="font-family:var(--mono);color:var(--muted)">${row.sections}</span></td>
+        <td><span style="font-family:var(--mono);color:var(--muted)">${row.types}</span></td>
+      </tr>`;
+    }).join('')
+  }</tbody>`;
+
+  // Charts
+  const top10 = sorted.slice(0,10);
+  if(CHARTS.lbBar){ CHARTS.lbBar.destroy(); delete CHARTS.lbBar; }
+  if(CHARTS.lbDur){ CHARTS.lbDur.destroy(); delete CHARTS.lbDur; }
+  CHARTS.lbBar = mkHBar('cLbBar', top10.map(x=>x.name), top10.map(x=>x.incidents));
+  CHARTS.lbDur = mkHBar('cLbDur', top10.map(x=>x.name), top10.map(x=>x.avg_duration));
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  AI SUGGESTIONS
+// ═══════════════════════════════════════════════════════════════════
+function renderAI(suggestions){
+  const colMap = {critical:'#ff3366',warning:'#ffcc00',info:'#00d4ff',success:'#00ff88'};
+  const grid = document.getElementById('aiGrid');
+  grid.innerHTML = suggestions.length ? suggestions.map(s => `
+    <div class="ai-card" style="--ai-c:${colMap[s.type]||'#ff6b1a'}">
+      <div class="ai-icon">${s.icon}</div>
+      <div>
+        <div class="ai-title">${s.title}</div>
+        <div class="ai-body">${s.body}</div>
+        <span class="ai-metric">${s.metric}</span>
+      </div>
+    </div>`).join('') :
+    '<div class="empty">No suggestions — insufficient data range. Widen your date filter.</div>';
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  HEATMAP
+// ═══════════════════════════════════════════════════════════════════
+function renderHeatmap(hourData){
+  const max = Math.max(...hourData.data, 1);
+  const wrap = document.getElementById('heatmapWrap');
+  wrap.innerHTML = `
+    <div class="heatmap">${hourData.data.map((v,h) => {
+      const pct = v/max, op = .1 + pct*.9;
+      const r = Math.round(255*pct), g = Math.round(107 + 148*(1-pct)), b = Math.round(26*(1-pct));
+      return `<div class="hm-cell" style="background:rgba(${r},${g},${b},${op})">
+        <div class="hm-tooltip">${h}:00 — ${v} incidents</div>
+      </div>`;
+    }).join('')}</div>
+    <div class="hm-label-row">${hourData.labels.map(l => `<div class="hm-label">${l.slice(0,2)}</div>`).join('')}</div>
+  `;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  ADDITIONAL ANALYTICS (shift / DOW / type-loss)
+// ═══════════════════════════════════════════════════════════════════
+function buildExtraCharts(rows){
+  // Shift distribution
+  const shifts = {Morning:0,Afternoon:0,Night:0};
+  rows.forEach(r => {
+    const h = parseInt((r['Start']||'0').split(':')[0])||0;
+    if(h>=6&&h<14)  shifts.Morning++;
+    else if(h>=14&&h<22) shifts.Afternoon++;
+    else shifts.Night++;
+  });
+  if(CHARTS.shift){ CHARTS.shift.destroy(); delete CHARTS.shift; }
+  CHARTS.shift = mkDonut('cShift', Object.keys(shifts), Object.values(shifts));
+
+  // Day of week
+  const dow = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const dowCnt = Array(7).fill(0);
+  rows.forEach(r => {
+    if(r['Date']){
+      const d = new Date(r['Date']);
+      if(!isNaN(d)) dowCnt[d.getDay()]++;
     }
+  });
+  if(CHARTS.dow){ CHARTS.dow.destroy(); delete CHARTS.dow; }
+  CHARTS.dow = mkBar('cDow', dow, dowCnt, dow.map((_,i) => P[i%P.length]));
+
+  // Type × Loss
+  const typeLoss = {};
+  rows.forEach(r => {
+    const t = r['Breakdown Type'] || 'Unknown';
+    if(!typeLoss[t]) typeLoss[t] = {yes:0,no:0};
+    (r['Production Loss']==='YES' ? typeLoss[t].yes++ : typeLoss[t].no++);
+  });
+  const tlTop = Object.entries(typeLoss).sort((a,b)=>(b[1].yes+b[1].no)-(a[1].yes+a[1].no)).slice(0,8);
+  if(CHARTS.typeLoss){ CHARTS.typeLoss.destroy(); delete CHARTS.typeLoss; }
+  const tlCtx = document.getElementById('cTypeLoss')?.getContext('2d');
+  if(tlCtx) CHARTS.typeLoss = new Chart(tlCtx,{type:'bar',
+    data:{labels:tlTop.map(x=>x[0]),datasets:[
+      {label:'With Loss',data:tlTop.map(x=>x[1].yes),backgroundColor:'rgba(255,51,102,.6)',borderColor:'#ff3366',borderWidth:1,borderRadius:3},
+      {label:'No Loss',  data:tlTop.map(x=>x[1].no), backgroundColor:'rgba(0,255,136,.4)',borderColor:'#00ff88',borderWidth:1,borderRadius:3},
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:LEG()}},
+      scales:{x:{stacked:true,grid:GL(),ticks:{...TK(8),maxRotation:40}},
+              y:{stacked:true,grid:GL(),ticks:TK()}}}});
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  TABLE
+// ═══════════════════════════════════════════════════════════════════
+function renderTable(){
+  const q     = document.getElementById('tblQ').value.toLowerCase();
+  const sec   = document.getElementById('fSec').value;
+  const loss  = document.getElementById('fLoss').value;
+  const type  = document.getElementById('fType').value;
+
+  let data = (DATA.rows||[]).filter(r => {
+    if(sec  && r['Section'] !== sec)              return false;
+    if(loss && r['Production Loss'] !== loss)      return false;
+    if(type && r['Breakdown Type'] !== type)       return false;
+    if(q && !COLS.map(c=>String(r[c]||'')).join(' ').toLowerCase().includes(q)) return false;
     return true;
   });
 
-  document.getElementById('tblCount').textContent = `(${data.length})`;
-  const head = document.getElementById('tHead');
-  const body = document.getElementById('tBody');
+  // sort
+  if(sortCol >= 0){
+    const k = COLS[sortCol];
+    data.sort((a,b) => {
+      const av = a[k]||'', bv = b[k]||'';
+      return sortDir * (isNaN(av)||isNaN(bv) ? String(av).localeCompare(String(bv)) : Number(av)-Number(bv));
+    });
+  }
 
-  head.innerHTML = '<tr>'+COLS.map(c=>`<th>${c}</th>`).join('')+'</tr>';
-  body.innerHTML = data.slice(-300).reverse().map(r =>
-    '<tr>'+COLS.map(c=>{
+  document.getElementById('tblCount').textContent = `(${data.length} records)`;
+
+  const thead = document.getElementById('tHead');
+  thead.innerHTML = '<tr>'+COLS.map((c,i)=>`<th onclick="tblSort(${i})" class="${sortCol===i?(sortDir===1?'sort-asc':'sort-desc'):''}">${c}</th>`).join('')+'</tr>';
+
+  document.getElementById('tBody').innerHTML = data.slice(0,300).map(r =>
+    '<tr>'+COLS.map(c => {
       const v = r[c] ?? '';
-      if(c==='Production Loss'){
-        const u = String(v).toUpperCase();
-        if(u==='YES') return `<td><span class="yes">YES</span></td>`;
-        return `<td><span class="no">NO</span></td>`;
-      }
+      if(c==='Production Loss') return `<td><span class="${v==='YES'?'badge-yes':'badge-no'}">${v}</span></td>`;
       return `<td title="${String(v).replace(/"/g,"'")}">${v}</td>`;
     }).join('')+'</tr>'
   ).join('');
 }
 
-// ─── MAIN DATA LOADER ────────────────────────────────────────────────
+function tblSort(i){
+  if(sortCol === i) sortDir *= -1; else { sortCol = i; sortDir = 1; }
+  renderTable();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  EXPORT CSV
+// ═══════════════════════════════════════════════════════════════════
+function exportCSV(){
+  const rows = DATA.rows || [];
+  const header = COLS.join(',');
+  const lines  = rows.map(r => COLS.map(c => `"${String(r[c]||'').replace(/"/g,'""')}"`).join(','));
+  const blob = new Blob([header+'\n'+lines.join('\n')], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'breakdowns_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  MAIN DATA LOADER
+// ═══════════════════════════════════════════════════════════════════
 async function loadData(){
-  document.getElementById('overlay').style.display = 'flex';
-  document.getElementById('app').style.display = 'none';
-  try{
-    const res  = await fetch('/api/dashboard');
+  const from = document.getElementById('dtFrom').value;
+  const to   = document.getElementById('dtTo').value;
+  const qs   = new URLSearchParams();
+  if(from) qs.set('from', from);
+  if(to)   qs.set('to', to);
+
+  try {
+    const res  = await fetch('/api/dashboard?' + qs);
     const data = await res.json();
     if(data.error) throw new Error(data.error);
+    DATA = data;
 
     // KPIs
-    const setKPI = (id, v) => {
-      const el = document.getElementById(id);
-      const sp = el.querySelector('span');
-      el.childNodes[0].textContent = v;
-      if(sp) el.appendChild(sp);
-    };
     document.getElementById('k0').textContent = data.kpis.total;
     document.getElementById('k1').innerHTML   = data.kpis.total_hrs + '<span class="kpi-unit">hrs</span>';
     document.getElementById('k2').innerHTML   = data.kpis.avg_min   + '<span class="kpi-unit">min</span>';
     document.getElementById('k3').innerHTML   = data.kpis.loss_pct  + '<span class="kpi-unit">%</span>';
     document.getElementById('k4').textContent = data.kpis.yes_loss;
 
-    // Populate section filter
-    const sel = document.getElementById('filterSec');
-    const cur = sel.value;
-    sel.innerHTML = '<option value="">All Sections</option>';
+    if(from||to) document.getElementById('kpiRange').textContent = (from||'start') + ' → ' + (to||'now');
+    else document.getElementById('kpiRange').textContent = 'ALL TIME';
+
+    killAll();
+
+    // Trend
+    const t = data.trend_daily;
+    CHARTS.trend = mkLine('cTrend', t.map(d=>d.date), t.map(d=>d.count));
+
+    // Section charts
+    CHARTS.sec    = mkHBar('cSec',    data.by_section.labels, data.by_section.counts);
+    CHARTS.secDur = mkHBar('cSecDur', data.by_section.labels, data.by_section.durations);
+    CHARTS.loss   = mkDonut('cLoss',  data.by_loss.labels,    data.by_loss.counts);
+    CHARTS.mach   = mkHBar('cMach',  data.by_machine.labels,  data.by_machine.counts);
+    CHARTS.type   = mkHBar('cType',  data.by_type.labels,     data.by_type.counts);
+    CHARTS.attn   = mkHBar('cAttn',  data.by_attendant.labels,data.by_attendant.counts);
+
+    // Hour chart
+    CHARTS.hour = mkBar('cHour', data.hour_dist.labels, data.hour_dist.data,
+      data.hour_dist.data.map(v => v > 0 ? P[Math.floor(v/Math.max(...data.hour_dist.data)*P.length)] : P[0]));
+
+    renderHeatmap(data.hour_dist);
+    buildExtraCharts(data.rows);
+
+    // Leaderboard
+    LB_DATA = data.leaderboard;
+    renderLeaderboard(LB_DATA);
+
+    // AI
+    renderAI(data.ai_suggestions);
+
+    // Section drill-down tabs
+    buildSectionTabs(data.drilldown);
+
+    // Table filters
+    const secSel = document.getElementById('fSec');
+    const curSec = secSel.value;
+    secSel.innerHTML = '<option value="">All Sections</option>';
     data.by_section.labels.forEach(s => {
-      const o = document.createElement('option'); o.value = s; o.textContent = s;
-      if(s === cur) o.selected = true;
-      sel.appendChild(o);
+      const o = document.createElement('option'); o.value=s; o.textContent=s;
+      if(s===curSec) o.selected=true;
+      secSel.appendChild(o);
     });
-    SECTIONS = data.by_section.labels;
-
-    kill();
-
-    // Charts
-    const tl = data.trend.map(d => d.date);
-    const td = data.trend.map(d => d.count);
-    charts.trend   = line ('cTrend',  tl, td);
-    charts.sec     = hbar ('cSec',    data.by_section.labels,   data.by_section.counts);
-    charts.secDur  = hbar ('cSecDur', data.by_section.labels,   data.by_section.durations);
-    charts.loss    = donut('cLoss',   data.by_loss.labels,      data.by_loss.counts);
-    charts.mach    = hbar ('cMach',   data.by_machine.labels,   data.by_machine.counts);
-    charts.type    = hbar ('cType',   data.by_type.labels,      data.by_type.counts);
-    charts.attn    = hbar ('cAttn',   data.by_attendant.labels, data.by_attendant.counts);
-
-    ALL_ROWS = data.rows;
+    const typeSel = document.getElementById('fType');
+    const curType = typeSel.value;
+    typeSel.innerHTML = '<option value="">All Types</option>';
+    data.by_type.labels.forEach(s => {
+      const o = document.createElement('option'); o.value=s; o.textContent=s;
+      if(s===curType) o.selected=true;
+      typeSel.appendChild(o);
+    });
     renderTable();
 
     document.getElementById('ts').textContent = 'Updated ' + new Date().toLocaleTimeString();
     document.getElementById('overlay').style.display = 'none';
-    document.getElementById('app').style.display = 'block';
-  } catch(e){
+    document.getElementById('appRoot').style.display = 'block';
+
+  } catch(err){
     document.getElementById('overlay').innerHTML = `
-      <div class="err">
-        <div class="err-t">⚠ Could Not Load Data</div>
-        <div class="err-m">${e.message}<br/><br/>
-          Make sure the sheet is shared publicly (Anyone with the link → Viewer)
-          and that SHEET_ID in app.py is correct.
-        </div>
-        <button class="btn" style="margin-top:14px" onclick="loadData()">RETRY</button>
+      <div class="err-box">
+        <div class="err-title">⚠ SYSTEM ERROR</div>
+        <div class="err-msg">${err.message}<br/><br/>Ensure sheet is publicly shared and SHEET_ID is correct.</div>
+        <button class="hdr-btn" style="margin-top:14px;border-color:var(--rd);color:var(--rd)" onclick="loadData()">⟳ RETRY</button>
       </div>`;
   }
 }
 
-function applyFilter(){ renderTable(); }
+// Set default date range (last 60 days)
+const now = new Date();
+const ago = new Date(now); ago.setDate(ago.getDate()-60);
+document.getElementById('dtTo').value   = now.toISOString().slice(0,10);
+document.getElementById('dtFrom').value = ago.toISOString().slice(0,10);
 
 loadData();
-setInterval(loadData, 5*60*1000);   // auto refresh every 5 min
+setInterval(loadData, 5*60*1000);
 </script>
 </body>
 </html>
